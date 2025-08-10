@@ -1,7 +1,6 @@
 package com.live_commerce.coupon.application.service;
 
-import com.live_commerce.coupon.application.port.IssueFirstJoinCouponPort;
-import com.live_commerce.coupon.application.port.PublishCouponUsedEventPort;
+import com.live_commerce.coupon.domain.exception.CouponPolicyException;
 import com.live_commerce.coupon.domain.exception.IssuedCouponException;
 import com.live_commerce.coupon.domain.model.CouponPolicy;
 import com.live_commerce.coupon.domain.model.DISCOUNT_TYPE;
@@ -30,23 +29,20 @@ public class IssuedCouponService {
 
   private final IssuedCouponRepository issuedCouponRepository;
   private final CouponPolicyRepository couponPolicyRepository;
-  // private final IssueFirstJoinCouponPort firstJoinCouponPort;
-  // private final PublishCouponUsedEventPort publishCouponUsedEventPort;
 
   public IssuedCoupon issueCoupon(IssuedCouponRequest request, RequestUserDetails userDetails) {
-
-    CouponPolicy couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(
-        request.couponCode()).orElseThrow();
+    CouponPolicy couponPolicy = couponPolicyRepository
+        .findByCodeAndDeletedStatusFalse(request.couponCode())
+        .orElseThrow(() -> CouponPolicyException.notFound(request.couponCode()));
 
     IssuedCoupon issuedCoupon = IssuedCoupon.from(request, couponPolicy, userDetails.getUserId());
-
-    issuedCoupon = issuedCouponRepository.save(issuedCoupon);
-    return issuedCoupon;
+    return issuedCouponRepository.save(issuedCoupon);
   }
 
   public IssuedCoupon issueFirstCoupon(IssuedCouponRequest request, UUID userId) {
-    CouponPolicy couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(
-        request.couponCode()).orElseThrow();
+    CouponPolicy couponPolicy = couponPolicyRepository
+        .findByCodeAndDeletedStatusFalse(request.couponCode())
+        .orElseThrow(() -> CouponPolicyException.notFound(request.couponCode()));
 
     IssuedCoupon issuedCoupon = IssuedCoupon.from(request, couponPolicy, userId);
     return issuedCouponRepository.save(issuedCoupon);
@@ -54,26 +50,20 @@ public class IssuedCouponService {
 
 
   public IssuedCoupon useCoupon(UUID couponId, RequestUserDetails userDetails) {
-
-    // TODO: 사용하지 않으 쿠폰만 조회
-    IssuedCoupon issuedCoupon = findIssuedCouponByIdAndUser(couponId, userDetails);
-
+    IssuedCoupon issuedCoupon = findIssuedCouponByIdAndUser(couponId, userDetails); // ID와 User 정보로 발급된 쿠폰을 조회
     checkIfCouponUsed(issuedCoupon);
-
     return processCouponUsage(issuedCoupon);
   }
 
   private IssuedCoupon findIssuedCouponByIdAndUser(UUID couponId, RequestUserDetails userDetails) {
-    return issuedCouponRepository.findByIdAndUserIdAndIsUsedFalse(couponId, userDetails.getUserId())
-        .orElseThrow(() -> {
-          IssuedCouponException.issuedCouponNotFound();
-          return null;
-        });
+    return issuedCouponRepository
+        .findByIdAndUserIdAndIsUsedFalse(couponId, userDetails.getUserId()) // ID와 UserId로 발급된 쿠폰 중 사용하지 않은 쿠폰 반환.
+        .orElseThrow(() -> IssuedCouponException.notFound(couponId, userDetails.getUserId()));
   }
 
   private void checkIfCouponUsed(IssuedCoupon issuedCoupon) {
     if (issuedCoupon.isUsed()) {
-      IssuedCouponException.alreadyUsedCoupon();
+      throw IssuedCouponException.alreadyUsed(issuedCoupon.getId()); // ✅
     }
   }
 
@@ -88,14 +78,10 @@ public class IssuedCouponService {
     return GetIssuedCouponResponse.from(issuedCoupon);
   }
 
-  private IssuedCoupon findByIdAndUserAndIsUsedFalse(UUID couponId,
-      RequestUserDetails userDetails) {
-    return issuedCouponRepository.findByIdAndUserIdAndIsUsedFalse(couponId, userDetails.getUserId())
-        .orElseThrow(() ->
-        {
-          IssuedCouponException.issuedCouponNotFound();
-          return null;
-        });
+  private IssuedCoupon findByIdAndUserAndIsUsedFalse(UUID couponId, RequestUserDetails userDetails) {
+    return issuedCouponRepository
+        .findByIdAndUserIdAndIsUsedFalse(couponId, userDetails.getUserId())
+        .orElseThrow(() -> IssuedCouponException.notFound(couponId, userDetails.getUserId()));
   }
 
   @Transactional(readOnly = true)
@@ -111,13 +97,11 @@ public class IssuedCouponService {
 
     IssuedCouponRequest request = new IssuedCouponRequest(couponCode);
     IssuedCoupon issuedCoupon = issueFirstCoupon(request, userId); // userId 기반
-
     return FirstJoinCouponResponse.from(issuedCoupon);
   }
 
 
   private CouponPolicy createFirstCouponPolicy(String couponCode) {
-
     CouponPolicy couponPolicy = CouponPolicy.builder()
         .code(couponCode)
         .name("First Coupon for Signup")
@@ -134,10 +118,6 @@ public class IssuedCouponService {
 
   }
 
-  // public void issueFirstCouponOnSignup(UUID userId) {
-  //   firstJoinCouponPort.publishFirstJoinEvent(userId);
-  // }
-
   public void issueFirstCouponDirectly(UUID userId) {
     String couponCode = "FIRST_COUPON";
     CouponPolicy couponPolicy = createFirstCouponPolicy(couponCode);
@@ -147,8 +127,7 @@ public class IssuedCouponService {
     FirstJoinCouponResponse.from(issuedCoupon);
   }
 
-  public UsedIssuedCouponResponse useCouponAndPublishEvent(UUID couponId,
-      RequestUserDetails userDetails) {
+  public UsedIssuedCouponResponse useCouponAndPublishEvent(UUID couponId, RequestUserDetails userDetails) {
     UUID userId = userDetails.getUserId();
     IssuedCoupon issued = useCoupon(couponId, userDetails);
     // publishCouponUsedEventPort.publishCouponUsedEvent(couponId, userId);
@@ -161,11 +140,7 @@ public class IssuedCouponService {
     // 1) 미사용 쿠폰 조회 (Repository 직접 호출)
     IssuedCoupon issuedCoupon = issuedCouponRepository
             .findByIdAndUserIdAndIsUsedFalse(couponId, userId)
-            .orElseThrow(() -> {
-              IssuedCouponException.issuedCouponNotFound();
-              return null;
-            });
-
+                .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
     checkIfCouponUsed(issuedCoupon);
     processCouponUsage(issuedCoupon);
   }

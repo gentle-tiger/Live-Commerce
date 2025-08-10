@@ -1,11 +1,9 @@
 package com.live_commerce.coupon.domain.model;
 
 import com.live_commerce.coupon.domain.exception.IssuedCouponException;
-import com.live_commerce.coupon.infrastructure.security.RequestUserDetails;
 import com.live_commerce.coupon.presentation.dto.request.IssuedCouponRequest;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.*;
@@ -34,7 +32,7 @@ public class IssuedCoupon {
   private LocalDateTime expiresAt;
 
   @Version
-  private Long version; //
+  private Long version;
 
   @Builder
   public IssuedCoupon(UUID id, UUID userId, String couponCode, boolean isUsed, LocalDateTime usedAt,
@@ -58,19 +56,19 @@ public class IssuedCoupon {
         .build();
   }
 
-
+  // 엔티티가 자신의 유효 상태를 스스로 보장(DDD 기본 원칙)
   public void useCoupon() {
     // 쿠폰 사용 여부 검증
     if (this.isUsed) {
-      throw new IllegalStateException("This coupon has already been used");
+      throw IssuedCouponException.alreadyUsed(this.id);
     }
     LocalDateTime now = LocalDateTime.now();
     // 쿠폰 만료 시간 검증
     if(this.expiresAt.isBefore(now)){
-      throw new IllegalStateException("Expired coupon");
+      throw IssuedCouponException.expired(this.id, this.userId);
     }
     this.isUsed = true;
-    this.usedAt = LocalDateTime.now();
+    this.usedAt =  now;
   }
 
 }

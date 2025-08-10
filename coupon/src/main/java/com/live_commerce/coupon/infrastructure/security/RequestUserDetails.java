@@ -2,13 +2,15 @@ package com.live_commerce.coupon.infrastructure.security;
 
 import java.util.Collection;
 import java.util.UUID;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 
 public class RequestUserDetails implements UserDetails {
 
-	private final UUID userId;
+	@Getter
+  private final UUID userId;
 	private final String username;
 	private final Collection<? extends GrantedAuthority> authorities;
 
@@ -18,11 +20,7 @@ public class RequestUserDetails implements UserDetails {
 		this.authorities = authorities;
 	}
 
-	public UUID getUserId() {
-		return userId;
-	}
-
-	@Override
+  @Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
 		return authorities;
 	}
