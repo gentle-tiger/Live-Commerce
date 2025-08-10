@@ -35,26 +35,18 @@ public class IssuedCouponService {
 
   public IssuedCoupon issueCoupon(IssuedCouponRequest request, RequestUserDetails userDetails) {
 
-    Optional<CouponPolicy> couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(
-        request.couponCode());
+    CouponPolicy couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(
+        request.couponCode()).orElseThrow();
 
-    if (couponPolicy.isEmpty()) {
-      IssuedCouponException.couponPolicyNotFound();
-    }
-
-    IssuedCoupon issuedCoupon = IssuedCoupon.from(request, couponPolicy, userDetails);
+    IssuedCoupon issuedCoupon = IssuedCoupon.from(request, couponPolicy, userDetails.getUserId());
 
     issuedCoupon = issuedCouponRepository.save(issuedCoupon);
     return issuedCoupon;
   }
 
   public IssuedCoupon issueFirstCoupon(IssuedCouponRequest request, UUID userId) {
-    Optional<CouponPolicy> couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(
-        request.couponCode());
-
-    if (couponPolicy.isEmpty()) {
-      IssuedCouponException.couponPolicyNotFound();
-    }
+    CouponPolicy couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(
+        request.couponCode()).orElseThrow();
 
     IssuedCoupon issuedCoupon = IssuedCoupon.from(request, couponPolicy, userId);
     return issuedCouponRepository.save(issuedCoupon);
@@ -80,7 +72,7 @@ public class IssuedCouponService {
   }
 
   private void checkIfCouponUsed(IssuedCoupon issuedCoupon) {
-    if (issuedCoupon.getIsUsed()) {
+    if (issuedCoupon.isUsed()) {
       IssuedCouponException.alreadyUsedCoupon();
     }
   }

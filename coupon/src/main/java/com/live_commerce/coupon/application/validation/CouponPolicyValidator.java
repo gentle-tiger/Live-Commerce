@@ -17,39 +17,20 @@ public class CouponPolicyValidator {
     this.couponPolicyRepository = couponPolicyRepository;
   }
 
-  public void validateForCreatePolicy(CreateCouponPolicyRequest request) {
-    if (couponPolicyRepository.existsById(request.code())) {
-      CouponPolicyException.duplicate(request.code());
-    }
 
-    if (request.startAt().isAfter(request.endAt())) {
-      CouponPolicyException.invalidDateRange(request.code());
-    }
-
-    if (request.discountType() == DISCOUNT_TYPE.FIXED
-        && request.discountValue().compareTo(request.maxOrderAmt()) > 0) {
-      CouponPolicyException.discountGreaterThanMaxOrderAmount();
-    }
-
-    if (request.discountType() == DISCOUNT_TYPE.RATE
-        && request.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
-      CouponPolicyException.discountGreaterThan100();
+  /** 생성 시, 활성 정책(code) 중복만 검사 → 나머지 순수 규칙은 엔티티가 보장 */
+  public void validateForCreatePolicy(CreateCouponPolicyRequest req){
+    // "활성(미삭제)" 기준 중복 체크 메서드를 권장합니다.
+    if(couponPolicyRepository.existByCodeAndDeletedStatusFalse(req.code())){
+      throw CouponPolicyException.duplicate(req.code());
     }
   }
 
-  public void validateForUpdatePolicy(UpdateCouponPolicyRequest request) {
-    if (request.startAt().isAfter(request.endAt())) {
-      CouponPolicyException.invalidDateRange(request.name()); // 사실 이거 name이 아니라 code 가 가야한느거 ... 임시... code도 정확한 거 아님..
-    }
-
-    if (request.discountType() == DISCOUNT_TYPE.FIXED
-        && request.discountValue().compareTo(request.maxOrderAmt()) > 0) {
-      CouponPolicyException.discountGreaterThanMaxOrderAmount();
-    }
-
-    if (request.discountType() == DISCOUNT_TYPE.RATE
-        && request.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
-      CouponPolicyException.discountGreaterThan100();
-    }
+  @Deprecated
+  public void validateForUpdatePolicy(UpdateCouponPolicyRequest req){
+    // 필요 시: 동일 code 내 name 중복 금지, 기간 겹침 금지(요구사항 있다면) 등 저장소 조회가 필요한 규칙만 여기에
   }
+
+
+
 }

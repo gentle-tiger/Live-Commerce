@@ -16,7 +16,7 @@ public class CouponPolicyException extends CustomException {
     return new CouponPolicyException(CouponPolicyExceptionCode.DUPLICATE_COUPON_CODE, policyCode);
   }
 
-  public static CouponPolicyException invalidDateRange(String policyCode){
+  public static CouponPolicyException invalidDateRange(){
     return new CouponPolicyException(CouponPolicyExceptionCode.INVALID_DATE_RANGE);
   }
 

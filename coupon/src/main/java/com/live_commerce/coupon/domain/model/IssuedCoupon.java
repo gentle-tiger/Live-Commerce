@@ -1,5 +1,6 @@
 package com.live_commerce.coupon.domain.model;
 
+import com.live_commerce.coupon.domain.exception.IssuedCouponException;
 import com.live_commerce.coupon.infrastructure.security.RequestUserDetails;
 import com.live_commerce.coupon.presentation.dto.request.IssuedCouponRequest;
 import jakarta.persistence.*;
@@ -25,12 +26,15 @@ public class IssuedCoupon {
   @Column(nullable = false, updatable = false)
   private String couponCode;
 
-  private Boolean isUsed;
+  private boolean isUsed;
 
   private LocalDateTime usedAt;
 
   @Column(nullable = false)
   private LocalDateTime expiresAt;
+
+  @Version
+  private Long version; //
 
   @Builder
   public IssuedCoupon(UUID id, UUID userId, String couponCode, boolean isUsed, LocalDateTime usedAt,
@@ -44,33 +48,26 @@ public class IssuedCoupon {
   }
 
   public static IssuedCoupon from(IssuedCouponRequest request,
-      Optional<CouponPolicy> couponPolicy, RequestUserDetails userDetails) {
+      CouponPolicy policy, UUID userId) {
     return IssuedCoupon.builder()
-//        .id(UUID.randomUUID())
-        .userId(userDetails.getUserId())
-        .couponCode(request.couponCode())
-        .isUsed(false)
-        .usedAt(null)
-        .expiresAt(couponPolicy.get().getEndAt())
-        .build();
-  }
-
-  public static IssuedCoupon from(IssuedCouponRequest request,
-      Optional<CouponPolicy> couponPolicy, UUID userId) {
-    return IssuedCoupon.builder()
-        //        .id(UUID.randomUUID())
         .userId(userId)
         .couponCode(request.couponCode())
         .isUsed(false)
         .usedAt(null)
-        .expiresAt(couponPolicy.get().getEndAt())
+        .expiresAt(policy.getEndAt())
         .build();
   }
 
 
   public void useCoupon() {
+    // 쿠폰 사용 여부 검증
     if (this.isUsed) {
       throw new IllegalStateException("This coupon has already been used");
+    }
+    LocalDateTime now = LocalDateTime.now();
+    // 쿠폰 만료 시간 검증
+    if(this.expiresAt.isBefore(now)){
+      throw new IllegalStateException("Expired coupon");
     }
     this.isUsed = true;
     this.usedAt = LocalDateTime.now();
