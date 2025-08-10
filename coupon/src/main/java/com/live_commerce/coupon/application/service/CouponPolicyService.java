@@ -1,5 +1,6 @@
 package com.live_commerce.coupon.application.service;
 
+import com.live_commerce.coupon.application.exception.CouponPolicyExceptionCode;
 import org.jetbrains.annotations.Contract;
 import org.springframework.security.access.AccessDeniedException;
 import com.live_commerce.coupon.application.validation.CouponPolicyValidator;
@@ -78,11 +79,7 @@ public class CouponPolicyService {
 
   private CouponPolicy findCouponPolicyOrElseThrow(String code) {
     return couponPolicyRepository.findByCodeAndDeletedStatusFalse(code)
-
-        .orElseThrow(() -> {
-          CouponPolicyException.forCouponPolicyNotFound();
-          return null;
-        });
+        .orElseThrow(() -> CouponPolicyException.notFound(code));
   }
 
   @Transactional(readOnly = true)
@@ -97,13 +94,9 @@ public class CouponPolicyService {
   public void deleteCouponPolicy(String code, RequestUserDetails user) {
     requireMaster(user);
 
-    CouponPolicy couponPolicy = couponPolicyRepository.findById(code)
-
-        .orElseThrow(() -> {
-          CouponPolicyException.forCouponPolicyNotFound();
-          return null;
-        });
-    couponPolicy.markCouponAsDeleted(couponPolicy.getName());
+    CouponPolicy couponPolicy = couponPolicyRepository.findByCodeAndDeletedStatusFalse(code)
+        .orElseThrow(() -> CouponPolicyException.notFound(code));
+    couponPolicy.markCouponAsDeleted(couponPolicy.getName()); // 사용자명 기록
     couponPolicyRepository.save(couponPolicy);
   }
 

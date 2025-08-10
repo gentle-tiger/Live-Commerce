@@ -19,37 +19,37 @@ public class CouponPolicyValidator {
 
   public void validateForCreatePolicy(CreateCouponPolicyRequest request) {
     if (couponPolicyRepository.existsById(request.code())) {
-      CouponPolicyException.forDuplicateCouponName();
+      CouponPolicyException.duplicate(request.code());
     }
 
     if (request.startAt().isAfter(request.endAt())) {
-      CouponPolicyException.forInvalidDateRange();
+      CouponPolicyException.invalidDateRange(request.code());
     }
 
     if (request.discountType() == DISCOUNT_TYPE.FIXED
         && request.discountValue().compareTo(request.maxOrderAmt()) > 0) {
-      CouponPolicyException.forDiscountGreaterThanMaxOrderAmount();
+      CouponPolicyException.discountGreaterThanMaxOrderAmount();
     }
 
     if (request.discountType() == DISCOUNT_TYPE.RATE
         && request.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
-      CouponPolicyException.forDiscountGreaterThan100();
+      CouponPolicyException.discountGreaterThan100();
     }
   }
 
   public void validateForUpdatePolicy(UpdateCouponPolicyRequest request) {
     if (request.startAt().isAfter(request.endAt())) {
-      CouponPolicyException.forInvalidDateRange();
+      CouponPolicyException.invalidDateRange(request.name()); // 사실 이거 name이 아니라 code 가 가야한느거 ... 임시... code도 정확한 거 아님..
     }
 
     if (request.discountType() == DISCOUNT_TYPE.FIXED
         && request.discountValue().compareTo(request.maxOrderAmt()) > 0) {
-      CouponPolicyException.forDiscountGreaterThanMaxOrderAmount();
+      CouponPolicyException.discountGreaterThanMaxOrderAmount();
     }
 
     if (request.discountType() == DISCOUNT_TYPE.RATE
         && request.discountValue().compareTo(BigDecimal.valueOf(100)) > 0) {
-      CouponPolicyException.forDiscountGreaterThan100();
+      CouponPolicyException.discountGreaterThan100();
     }
   }
 }

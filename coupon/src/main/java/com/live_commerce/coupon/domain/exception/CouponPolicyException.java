@@ -5,31 +5,27 @@ import com.live_commerce.coupon.application.exception.CustomException;
 
 public class CouponPolicyException extends CustomException {
 
-  public CouponPolicyException(CouponPolicyExceptionCode code) {
-    super(code);
+  public CouponPolicyException(CouponPolicyExceptionCode code, Object... args) {
+    super(code,args); // 메시지는 핸ㄷ ㅡㄹ러에서 i18n으로 조립
   }
 
-  public static void forDuplicateCouponName() {
-    throw new CouponPolicyException(CouponPolicyExceptionCode.DUPLICATE_COUPON_CODE);
+  public static CouponPolicyException notFound(String policyCode){
+    return new CouponPolicyException(CouponPolicyExceptionCode.COUPON_POLICY_NOT_FOUND, policyCode);
+  }
+  public static CouponPolicyException duplicate(String policyCode){
+    return new CouponPolicyException(CouponPolicyExceptionCode.DUPLICATE_COUPON_CODE, policyCode);
   }
 
-  public static void forInvalidDateRange() {
-    throw new CouponPolicyException(CouponPolicyExceptionCode.INVALID_DATE_RANGE);
+  public static CouponPolicyException invalidDateRange(String policyCode){
+    return new CouponPolicyException(CouponPolicyExceptionCode.INVALID_DATE_RANGE);
   }
 
-  public static void forDiscountGreaterThanMaxOrderAmount() {
-    throw new CouponPolicyException(
-        CouponPolicyExceptionCode.DISCOUNT_GREATER_THAN_MAX_ORDER_AMOUNT);
+  public static CouponPolicyException discountGreaterThanMaxOrderAmount(){
+    return new CouponPolicyException(CouponPolicyExceptionCode.DISCOUNT_GREATER_THAN_MAX_ORDER_AMOUNT);
   }
 
-  public static void forDiscountGreaterThan100() {
-    throw new CouponPolicyException(
-        CouponPolicyExceptionCode.DISCOUNT_GREATER_THAN_100
-    );
-  }
-
-  public static void forCouponPolicyNotFound(){
-    throw new CouponPolicyException(CouponPolicyExceptionCode.COUPON_POLICY_NOT_FOUND);
+  public static CouponPolicyException discountGreaterThan100(){
+    return new CouponPolicyException(CouponPolicyExceptionCode.DISCOUNT_GREATER_THAN_100);
   }
 
 }

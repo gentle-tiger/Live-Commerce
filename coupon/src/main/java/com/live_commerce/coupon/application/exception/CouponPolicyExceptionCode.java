@@ -18,6 +18,6 @@ public enum CouponPolicyExceptionCode implements ExceptionCode {
   COUPON_POLICY_NOT_FOUND(HttpStatus.NOT_FOUND, "쿠폰 정책이 없거나 모두 삭제되었습니다.");
 
   private final HttpStatus httpStatus;
-  private final String message;
+  private final String messageKey;
 
 }
