@@ -67,6 +67,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// JetBrains 어노테이션
+	compileOnly("org.jetbrains:annotations:24.1.0")
 }
 
 dependencyManagement {
