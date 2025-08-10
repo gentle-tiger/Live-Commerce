@@ -6,7 +6,7 @@ import com.live_commerce.coupon.application.exception.CustomException;
 public class CouponPolicyException extends CustomException {
 
   public CouponPolicyException(CouponPolicyExceptionCode code, Object... args) {
-    super(code,args); // 메시지는 핸ㄷ ㅡㄹ러에서 i18n으로 조립
+    super(code,args); // 메시지는 핸들러에서 i18n으로 조립
   }
 
   public static CouponPolicyException notFound(String policyCode){

@@ -1,7 +1,7 @@
 package com.live_commerce.coupon.infrastructure.kafka.consumer;
 
 import com.live_commerce.coupon.application.service.IssuedCouponService;
-import com.live_commerce.coupon.infrastructure.kafka.event.CouponUsedEvent;
+import com.live_commerce.coupon.domain.event.CouponUsedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;

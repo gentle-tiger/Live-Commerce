@@ -24,7 +24,8 @@ public class IssuedCouponControllerV2 {
   public ResponseEntity<ApiResponse<UsedIssuedCouponResponse>> useCoupon(
       @PathVariable UUID couponId,
       @AuthenticationPrincipal RequestUserDetails userDetails) {
-    UsedIssuedCouponResponse response = issuedCouponService.useCouponAndPublishEvent(couponId, userDetails);
+    UsedIssuedCouponResponse response =
+        issuedCouponService.useCouponAndPublishEvent(couponId, userDetails);  // 컨트롤러는 변경 X. 내부에서 재시도+이벤트
     return ResponseUtil.success(response);
   }
 

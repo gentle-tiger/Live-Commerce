@@ -60,12 +60,12 @@ public class IssuedCoupon {
   public void useCoupon() {
     // 쿠폰 사용 여부 검증
     if (this.isUsed) {
-      throw IssuedCouponException.alreadyUsed(this.id);
+      throw IssuedCouponException.alreadyUsed(this.id); // 409
     }
     LocalDateTime now = LocalDateTime.now();
     // 쿠폰 만료 시간 검증
     if(this.expiresAt.isBefore(now)){
-      throw IssuedCouponException.expired(this.id, this.userId);
+      throw IssuedCouponException.expired(this.id, this.userId); // 410
     }
     this.isUsed = true;
     this.usedAt =  now;
