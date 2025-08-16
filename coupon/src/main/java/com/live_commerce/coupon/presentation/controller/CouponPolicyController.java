@@ -24,6 +24,11 @@ public class CouponPolicyController {
 
   private final CouponPolicyService couponService;
 
+  /**
+   * 쿠폰 정책 리스트 조회
+   * @param userDetails
+   * @return
+   */
   @GetMapping
   public ResponseEntity<ApiResponse<List<ReadCouponPolicyResponse>>> getCouponPolicies(
       @AuthenticationPrincipal RequestUserDetails userDetails
@@ -32,6 +37,12 @@ public class CouponPolicyController {
     return ResponseUtil.success(response);
   }
 
+  /**
+   * 단일 쿠폰 정책 조회
+   * @param code
+   * @param userDetails
+   * @return
+   */
   @GetMapping("/detail/{code}")
   public ResponseEntity<ApiResponse<ReadCouponPolicyResponse>> getCouponPolicy(
       @PathVariable String code,
@@ -41,6 +52,15 @@ public class CouponPolicyController {
     return ResponseUtil.success(response);
   }
 
+  /**
+   * 쿠폰 정책 검색
+   * @param keyword
+   * @param page
+   * @param sortBy
+   * @param discountType
+   * @param userDetails
+   * @return
+   */
   @GetMapping("/search")
   public ResponseEntity<ApiResponse<SearchCouponPolicyResponse>> searchCouponPolicy(
       @RequestParam String keyword,
@@ -55,8 +75,14 @@ public class CouponPolicyController {
     return ResponseUtil.success(response);
   }
 
+  /**
+   * 쿠폰 정책 생성
+   * @param request
+   * @param userDetails
+   * @return
+   */
   @PostMapping
-  public ResponseEntity<ApiResponse<CreateCouponPolicyResponse>> createCoupon(
+  public ResponseEntity<ApiResponse<CreateCouponPolicyResponse>> createCouponPolicy(
       @Valid @RequestBody CreateCouponPolicyRequest request,
       @AuthenticationPrincipal RequestUserDetails userDetails
   ) {
@@ -64,6 +90,12 @@ public class CouponPolicyController {
     return ResponseUtil.success(response);
   }
 
+  /**
+   * 쿠폰 정책 삭제
+   * @param code
+   * @param userDetails
+   * @return
+   */
   @DeleteMapping("/{code}")
   public ResponseEntity<ApiResponse<Void>> deleteCouponPolicy(
       @PathVariable String code,
@@ -73,6 +105,13 @@ public class CouponPolicyController {
     return ResponseUtil.noContent();
   }
 
+  /**
+   * 쿠폰 정책 수정
+   * @param code
+   * @param request
+   * @param userDetails
+   * @return
+   */
   @PatchMapping("/{code}")
   public ResponseEntity<ApiResponse<Void>> updateCouponPolicy(
       @PathVariable String code,

@@ -19,7 +19,10 @@ public class IssuedCouponControllerV2 {
   private final IssuedCouponService issuedCouponService;
 
 
-  // 쿠폰 사용 요쳥(kafka)
+  /**
+   *  쿠폰 사용 요쳥(kafka)
+   */
+
   @PatchMapping("/{couponId}/use")
   public ResponseEntity<ApiResponse<UsedIssuedCouponResponse>> useCoupon(
       @PathVariable UUID couponId,
@@ -30,7 +33,12 @@ public class IssuedCouponControllerV2 {
   }
 
 
-  // 첫 회원가입 쿠폰 발급(kafka)
+  /**
+   * 첫 회원가입 쿠폰 발급(kafka)
+   * @param userId
+   * @return
+   */
+
   @PostMapping("/{userId}/signup-first")
   public ResponseEntity<ApiResponse<Void>> signupFirstCoupon(@PathVariable UUID userId) {
     issuedCouponService.issueFirstCouponDirectly(userId);

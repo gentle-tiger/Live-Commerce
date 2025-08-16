@@ -23,6 +23,12 @@ public class IssuedCouponController {
 
   private final IssuedCouponService issuedCouponService;
 
+  /**
+   * 쿠폰 발급
+   * @param request
+   * @param userDetails
+   * @return
+   */
   @PostMapping("/")
   public ResponseEntity<ApiResponse<IssuedCoupon>> issueCoupon(
       @RequestBody IssuedCouponRequest request,
@@ -32,7 +38,13 @@ public class IssuedCouponController {
     return ResponseUtil.success(response);
   }
 
-  // 쿠폰 사용 요쳥
+  /**
+   * 쿠폰 사용 처리
+   * @param couponId
+   * @param userDetails
+   * @return
+   */
+  @Deprecated
   @PatchMapping("/{couponId}/use")
   public ResponseEntity<ApiResponse<UsedIssuedCouponResponse>> useCoupon(
       @PathVariable UUID couponId,
@@ -42,7 +54,12 @@ public class IssuedCouponController {
     return ResponseUtil.success(response);
   }
 
-  // 단일 쿠폰 조회
+  /**
+   * 단일 쿠폰 조회
+   * @param couponId
+   * @param userDetails
+   * @return
+   */
   @GetMapping("/{couponId}")
   public ResponseEntity<ApiResponse<GetIssuedCouponResponse>> getIssuedCoupon(
       @PathVariable UUID couponId,
@@ -51,7 +68,11 @@ public class IssuedCouponController {
     return ResponseUtil.success(response);
   }
 
-  // 쿠폰 목록 조회
+  /**
+   * 쿠폰 목록 조회
+   * @param userDetails
+   * @return
+   */
   @GetMapping("/")
   public ResponseEntity<ApiResponse<IssuedCouponListResponse>> getIssuedCoupons(
       @AuthenticationPrincipal RequestUserDetails userDetails) {
@@ -59,7 +80,12 @@ public class IssuedCouponController {
     return ResponseUtil.success(response);
   }
 
-  // 첫 회원가입 쿠폰 발급
+  /**
+   * 첫 회원가입 쿠폰 발급
+   * @param userId
+   * @return
+   */
+  @Deprecated
   @PostMapping("/{userId}/signup-first")
   public ResponseEntity<ApiResponse<FirstJoinCouponResponse>> issueFirstCoupon(
       @PathVariable UUID userId
