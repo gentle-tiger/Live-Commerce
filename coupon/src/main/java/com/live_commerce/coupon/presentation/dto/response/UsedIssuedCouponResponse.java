@@ -18,7 +18,7 @@ public record UsedIssuedCouponResponse(
         issuedCoupon.getId(),
         issuedCoupon.getCouponCode(),
         issuedCoupon.getUserId(),
-        issuedCoupon.getIsUsed(),
+        issuedCoupon.isUsed(),
         issuedCoupon.getUsedAt(),
         issuedCoupon.getExpiresAt()
     );

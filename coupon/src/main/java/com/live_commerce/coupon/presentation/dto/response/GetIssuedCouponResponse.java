@@ -19,7 +19,7 @@ public record GetIssuedCouponResponse(
         issuedCoupon.getId(),
         issuedCoupon.getUserId(),
         issuedCoupon.getCouponCode(),
-        issuedCoupon.getIsUsed(),
+        issuedCoupon.isUsed(),
         issuedCoupon.getExpiresAt()
     );
   }
