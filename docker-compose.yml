@@ -285,7 +285,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - 8do-network
 
@@ -310,7 +310,7 @@ services:
     env_file:
       - ./.env
     volumes:
-      - ./infra/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
 
 networks:
   8do-network:
