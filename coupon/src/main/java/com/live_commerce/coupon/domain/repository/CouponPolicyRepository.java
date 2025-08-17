@@ -3,7 +3,6 @@ package com.live_commerce.coupon.domain.repository;
 import com.live_commerce.coupon.domain.model.CouponPolicy;
 import com.live_commerce.coupon.domain.model.DISCOUNT_TYPE;
 import com.live_commerce.coupon.presentation.dto.request.CouponPolicySearchResult;
-import jakarta.validation.constraints.NotNull;
 import java.util.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,5 +30,5 @@ public interface CouponPolicyRepository extends JpaRepository<CouponPolicy, Stri
       Pageable pageable
   );
 
-  boolean existByCodeAndDeletedStatusFalse(String code);
+  boolean existsByCodeAndDeletedStatusFalse(String code);
 }
