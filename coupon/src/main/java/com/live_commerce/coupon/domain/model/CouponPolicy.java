@@ -65,6 +65,43 @@ public class CouponPolicy extends BaseEntity {
     validateInvariants(); // 생성 시 불변식 보장.
   }
 
+  public void update(UpdateCouponPolicyRequest req){
+    String newName = req.name();
+    DISCOUNT_TYPE newType = req.discountType();
+    BigDecimal newDiscountValue = req.discountValue();
+    BigDecimal newMin = req.minOrderAmt();
+    BigDecimal newMax = req.maxOrderAmt();
+    LocalDateTime newStart = req.startAt();
+    LocalDateTime newEnd = req.endAt();
+    boolean newActive = req.isActive();
+
+    // 임시로 필드 바꾸지 말고, 체크만
+    // 쿠폰 시작 시간이 누락됐을 때 에러 던짐
+    if(newStart.isAfter(newEnd)) throw CouponPolicyException.invalidDateRange();
+    // 젇액할인일 때, 최대값이 null이면 안 되고, 할인금액이 0보다 커야함.
+    if(newType == DISCOUNT_TYPE.FIXED && newMax != null && newDiscountValue.compareTo(newMax)> 0) // 근데 왜 compareTo를 쓰고, 0이랑 비교하지..?
+      throw CouponPolicyException.discountGreaterThanMaxOrderAmount();
+    // 정률할인일 때, 최대값이 100이 ..??
+    if(newType == DISCOUNT_TYPE.RATE && newDiscountValue.compareTo(BigDecimal.valueOf(100)) > 0)
+      throw CouponPolicyException.discountGreaterThan100();
+
+    // 사실 위에 검증 로직 삭제하고 validateInveriants에서 검증하면 되는거 아닌가?
+    validateInvariants();
+
+    // 검증이 끝나면 반영
+    this.name = newName;
+    this.discountType = newType;
+    this.discountValue = newDiscountValue;
+    this.minOrderAmt = newMin;
+    this.maxOrderAmt = newMax;
+    this.startAt = newStart;
+    this.endAt = newEnd;
+    this.isActive = newActive;
+
+  }
+
+
+
   /** 엔티티 스스로 지키는 순수 도메인 규칙(저장소/I-O 비의존) */
   private void validateInvariants(){
 

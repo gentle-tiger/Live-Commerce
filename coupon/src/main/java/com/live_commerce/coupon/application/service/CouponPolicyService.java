@@ -104,11 +104,10 @@ public class CouponPolicyService {
       RequestUserDetails user) {
     requireMaster(user);
 
-    CouponPolicy updateCouponPolicy = findCouponPolicyOrElseThrow(code);
-    couponPolicyValidator.validateForUpdatePolicy(request);
-    updateCouponPolicy.updateCouponPolicy(request);
-    couponPolicyRepository.save(updateCouponPolicy);
-
+    CouponPolicy policy = findCouponPolicyOrElseThrow(code);
+    couponPolicyValidator.validateForUpdatePolicy(request); // 저장소 의존 규칙이 생기면 여기서
+    policy.update(request);
+    couponPolicyRepository.save(policy);
   }
 
   public SearchCouponPolicyResponse searchCouponPolicy(String keyword, Integer page, String sortBy,
