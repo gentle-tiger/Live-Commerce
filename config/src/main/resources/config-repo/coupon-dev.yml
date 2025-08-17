@@ -31,18 +31,28 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties: {}
+      properties:
+         spring.json.add.type.headers: true
+         spring.json.type.mapping: >
+           coupon-used: com.live_commerce.coupon.infrastructure.kafka.message.CouponUsedMessage
+#     여기 아래 설정들은 뭐지??
+      acks: all
+      retries: 10
+      enable.idempotence: true
+      delivery.timeout.ms: 120000
+      linger.ms: 10
+      batch.size: 32768
 
     consumer:
       group-id: ${spring.application.name}m
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: '*'
+        spring.json.trusted.packages: com.live_commerce.*
 #        com.live_commerce.user.infrastructure.kafka.event, com.live_commerce.coupon.infrastructure.kafka.event
         spring.json.type.mapping: >
           first-join-coupon: com.live_commerce.coupon.infrastructure.kafka.event.FirstJoinCouponEvent,
-          coupon-used: com.live_commerce.coupon.infrastructure.kafka.event.CouponUsedEvent
+          coupon-used:com.live_commerce.coupon.domain.event.CouponUsedEvent
 
     listener:
       ack-mode: MANUAL_IMMEDIATE
@@ -53,3 +63,7 @@ gateway:
 springdoc:
   api-docs:
     path: /v3/api-docs/coupon
+
+coupon:
+  topics:
+    coupon-used: coupons.CouponUsed.v1
