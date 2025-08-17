@@ -1,5 +1,7 @@
 package com.live_commerce.coupon.application.service;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 import com.live_commerce.coupon.domain.event.CouponUsedEvent;
 import com.live_commerce.coupon.domain.exception.CouponPolicyException;
 import com.live_commerce.coupon.domain.exception.IssuedCouponException;
@@ -33,7 +35,7 @@ public class IssuedCouponService {
   private final IssuedCouponRepository issuedCouponRepository;
   private final CouponPolicyRepository couponPolicyRepository;
 
-  private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   // 쿠폰 발급
   public IssuedCoupon issueCoupon(IssuedCouponRequest request, RequestUserDetails userDetails) {
@@ -199,8 +201,9 @@ public class IssuedCouponService {
    */
   public UsedIssuedCouponResponse useCouponAndPublishEvent(UUID couponId, RequestUserDetails userDetails) {
     UUID userId = userDetails.getUserId();
-    IssuedCoupon issued = useCoupon(couponId, userDetails);
+    IssuedCoupon issued = useCoupon(couponId, userDetails); // 상태 변경 & 저장 (낙관적 락)
 
+    // 커밋 성공 시점에만 리스너가 실행됨
     // AFTER_COMMIT 발행 (트랜잭션 커밋 후) | 여기서 말하는 aftercommit을 발행하면 어떤 결과가 도출되고 트랜잭션 ㅌ커밋 후 라는건 어떤 트랜잭션을 기준으로 하는건지..?
     eventPublisher.publishEvent(new CouponUsedEvent(issued.getId(), userId));
     return UsedIssuedCouponResponse.from(issued);
