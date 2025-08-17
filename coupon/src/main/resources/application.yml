@@ -5,7 +5,11 @@ spring:
     name: coupon
   profiles:
     active: dev
-
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.kafka.listener: INFO
+    org.springframework.kafka.KafkaListenerEndpointContainer: INFO
 #spring:
 #  profiles:
 #    active: prod
