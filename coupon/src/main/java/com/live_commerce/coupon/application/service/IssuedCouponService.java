@@ -68,27 +68,23 @@ public class IssuedCouponService {
     final UUID userId = userDetails.getUserId();
     final int maxAttempts = 3;
     final long baseDelayMs = 10L; // 초기 백오프
-    java.util.Random random = new java.util.Random(); // 왜 내부에서 선언? 클래스 내에서 import 해도 되지 않나?
+    final java.util.Random random = new java.util.Random(); // 클래스 레벨에서 선언
 
-    for (int attempt = 1; attempt <= maxAttempts;
-        attempt++) { // try-with-resources 를 쓰는게 더 적합하지 않나? 아닌가./
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) { // try-with-resources 를 쓰는게 더 적합하지 않나? 아닌가./
       try {
         return doUseCouponOnce(couponId, userId);
       } catch (OptimisticLockingFailureException e) {
         // 충돌 : 백오프 후 재시도
-        if (attempt == maxAttempts) {
-          throw e; // 3번 모두 실패할 경우 예외 전파 .. 그런데 항상 false라고 뜨던데? (Condition 'attempt == maxAttempts' is always 'false' )
-        }
+        if (attempt == maxAttempts)  throw e; // 3번 모두 실패할 경우 예외 전파 ..
+
         long jitter = random.nextLong(baseDelayMs + 1); // 0 ~ baseDelayMs
-        long backoff =
-            (baseDelayMs << (attempt + 1)) + jitter; // 이건 무슨 로직이지?  그리고 백오프는 어떤 거고 왜 필요하지?
+        long backoff = (long) (baseDelayMs * Math.pow(2, attempt)) + jitter; // 지수 백오프
 
         try {
-          Thread.sleep(backoff); // 스레드를 왜 재우지? 그래도 백오프를 계산해서 넣는 이유는 뭐지..?
+          Thread.sleep(backoff); // 스레드를 재우는 이유: 재시도 간의 지연을 위해
         } catch (InterruptedException e2) {
-          Thread.currentThread()
-              .interrupt(); // 이건 애플리케이션 레벨에서 실행할 수 있는 동시성 메서드인가? 그럼 interrupt() 메서드는 어떤 역할이지? 에러가 나면 실행하는 이유는 뭐지.
-          throw e; // InterruptedException을 검증? 하는 이유는 뭐고 그럼에도 왜 e2가 아닌 e  를 반환하는지?
+          Thread.currentThread().interrupt(); // 인터럽트 상태를 유지
+          throw new IllegalStateException("Thread was interrupted 스레드 중단됨", e2); // InterruptedException: 스레드가 대기 중에 중단 신호를 받았을 때 발생하는 예외
         }
       }
     }
@@ -97,9 +93,11 @@ public class IssuedCouponService {
 
   /**
    * 1회 소진 시도. 엔티티가 이미 미사용/만료를 자체 검증.
+   * REQUIRES_NEW: 새로운 트랜잭션을 시작하여 독립적으로 실행.
+   * protected: 서브클래스에서 호출 가능하며, 외부 접근은 제한.
    */
-  @Transactional(propagation = Propagation.REQUIRES_NEW) // 어떤 속성이지? 왜 다른 속성이 아닌 이걸 쓰는건지?
-  protected IssuedCoupon doUseCouponOnce(UUID couponId, UUID userId) { // 왜 프로텍트일까?????? 좀 상세하게 알고싶어. public private 도 되지 않나?
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  protected IssuedCoupon doUseCouponOnce(UUID couponId, UUID userId) {
     IssuedCoupon issuedCoupon = issuedCouponRepository
         .findByIdAndUserIdAndIsUsedFalse(couponId, userId)
         .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
