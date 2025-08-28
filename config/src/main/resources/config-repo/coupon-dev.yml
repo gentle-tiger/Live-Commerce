@@ -25,6 +25,13 @@ spring:
     password: 8dostore
     driver-class-name: org.postgresql.Driver
 
+  cache:
+    type: redis
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+
   kafka:
     bootstrap-servers: localhost:9092
 
