@@ -24,8 +24,15 @@ public class CouponUsage extends BaseEntity {
   @Column(nullable = false)
   private BigDecimal amount;
 
+  private CouponStatus status = CouponStatus.ACTIVE;
+
+  @ManyToOne
+  @JoinColumn(name = "coupon_id")
+  private IssuedCoupon issuedCoupon;
+
   private boolean isUsed = false;
 
   private LocalDateTime usedAt;
 
 }
+
