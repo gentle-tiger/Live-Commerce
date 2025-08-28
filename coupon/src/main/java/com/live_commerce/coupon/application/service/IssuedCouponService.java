@@ -63,7 +63,7 @@ public class IssuedCouponService {
   /**
    * 낙관적 락 충돌 시 수종 재시도 + 지수 백오프 (최대 3회) 트랜잭션은 시도마다 REQUIRES_NEW로 새로 연다.
    */
-  @Transactional(readOnly = true) // 바깥은 readOnly; 실사용은 내부 REQUIRES_NEW에서 처리
+//  @Transactional(readOnly = true) // 바깥은 readOnly; 실사용은 내부 REQUIRES_NEW에서 처리 // 이거 떄문에 동시성 테스트를 통과하지 못했던 것임.
   public IssuedCoupon useCoupon(UUID couponId, RequestUserDetails userDetails) {
     final UUID userId = userDetails.getUserId();
     final int maxAttempts = 3;
