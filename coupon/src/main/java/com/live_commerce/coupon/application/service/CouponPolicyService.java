@@ -2,6 +2,8 @@ package com.live_commerce.coupon.application.service;
 
 import com.live_commerce.coupon.application.exception.CouponPolicyExceptionCode;
 import org.jetbrains.annotations.Contract;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.access.AccessDeniedException;
 import com.live_commerce.coupon.application.validation.CouponPolicyValidator;
 import com.live_commerce.coupon.domain.exception.CouponPolicyException;
@@ -68,8 +70,9 @@ public class CouponPolicyService {
       throw new AccessDeniedException("마스터 권한이 있는 유저만 생성할 수 있습니다.");
     }
   }
-
+  // 쿠폰 정책 조회가 잦고 변경이 드물다는 전제하에 캐시 적용
   @Transactional(readOnly = true)
+  @Cacheable(value = "coupon:policy", key = "#code", unless = "#result == null")
   public ReadCouponPolicyResponse getCouponPolicy(String code, RequestUserDetails user) {
     requireMaster(user);
 
@@ -91,6 +94,7 @@ public class CouponPolicyService {
         .collect(Collectors.toList());
   }
 
+  @CacheEvict(value = "coupon:policy", key = "#code")
   public void deleteCouponPolicy(String code, RequestUserDetails user) {
     requireMaster(user);
 
@@ -100,6 +104,7 @@ public class CouponPolicyService {
     couponPolicyRepository.save(couponPolicy);
   }
 
+  @CacheEvict(value = "coupon:policy", key ="#code")
   public void updateCouponPolicy(String code, UpdateCouponPolicyRequest request,
       RequestUserDetails user) {
     requireMaster(user);
