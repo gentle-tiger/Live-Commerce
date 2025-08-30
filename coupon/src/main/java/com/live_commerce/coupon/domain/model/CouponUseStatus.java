@@ -1,6 +1,6 @@
 package com.live_commerce.coupon.domain.model;
 
-public enum CouponStatus{
+public enum CouponUseStatus {
   ACTIVE, 
   USED,
   EXPIRED
