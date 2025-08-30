@@ -1,4 +1,4 @@
-package com.live_commerce.coupon.infrastructure.redis;
+package com.live_commerce.coupon.infrastructure.config;
 
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
