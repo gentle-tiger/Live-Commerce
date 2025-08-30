@@ -24,12 +24,17 @@ public class IssuedCoupon {
   @Column(nullable = false, updatable = false)
   private String couponCode;
 
+  @Column(name = "is_used", nullable = false) /** 레거시 호환 필드 (이후 제거 예정) */
   private boolean isUsed;
 
   private LocalDateTime usedAt;
 
   @Column(nullable = false)
   private LocalDateTime expiresAt;
+
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false)
+  private CouponUseStatus status; /** 추가 */
 
   @Version
   private Long version;
@@ -58,17 +63,26 @@ public class IssuedCoupon {
 
   // 엔티티가 자신의 유효 상태를 스스로 보장(DDD 기본 원칙)
   public void useCoupon() {
-    // 쿠폰 사용 여부 검증
-    if (this.isUsed) {
-      throw IssuedCouponException.alreadyUsed(this.id); // 409
+    // (1) 이미 사용
+    if (status == CouponUseStatus.USED) {
+      throw IssuedCouponException.alreadyUsed(id); // 409
     }
     LocalDateTime now = LocalDateTime.now();
-    // 쿠폰 만료 시간 검증
-    if(this.expiresAt.isBefore(now)){
-      throw IssuedCouponException.expired(this.id, this.userId); // 410
+    // (2) 만료됨: SQL에서 <= now()를 쓰므로 자바도 동일 의미로
+    if(status == CouponUseStatus.EXPIRED || !expiresAt.isAfter(now)){
+      throw IssuedCouponException.expired(id, userId); // 410
     }
-    this.isUsed = true;
+
+    // (3) 상태 전이: ACTIVE -> USED
+    this.status = CouponUseStatus.USED;
+    this.isUsed = true;  // 호환(과도기)
     this.usedAt =  now;
   }
 
+  public void expireCoupon(LocalDateTime now){
+    if(status == CouponUseStatus.ACTIVE && expiresAt.isAfter(now)){ // !expiresAt.isAfter(now)를 쓰면 서버/배치 결과가 일치
+      this.status = CouponUseStatus.EXPIRED;
+      this.isUsed = false; // 호환(USED가 아니므로 false로 변환)
+    }
+  }
 }
