@@ -1,5 +1,6 @@
 package com.live_commerce.coupon.application.service;
 
+import com.live_commerce.coupon.domain.model.CouponUseStatus;
 import org.springframework.context.ApplicationEventPublisher;
 
 import com.live_commerce.coupon.domain.event.CouponUsedEvent;
@@ -68,7 +69,7 @@ public class IssuedCouponService {
     final UUID userId = userDetails.getUserId();
     final int maxAttempts = 3;
     final long baseDelayMs = 10L; // 초기 백오프
-    final java.util.Random random = new java.util.Random(); // 클래스 레벨에서 선언
+    final Random random = new Random(); // 클래스 레벨에서 선언
 
     for (int attempt = 1; attempt <= maxAttempts; attempt++) { // try-with-resources 를 쓰는게 더 적합하지 않나? 아닌가./
       try {
@@ -105,8 +106,13 @@ public class IssuedCouponService {
     // 엔티티가 상태 전이 불변식(이미 사용/만료)인지 검증하는 로직
     issuedCoupon.useCoupon();
 
+    IssuedCoupon savedCoupon = issuedCouponRepository.save(issuedCoupon);
+
+    // 🔁 이동: 내부(REQUIRES_NEW) 트랜잭션에서 발행 → AFTER_COMMIT 리스너는 이 커밋을 기준으로 실행
+    eventPublisher.publishEvent(new CouponUsedEvent(savedCoupon.getId(), userId));
+
     // @Version 충돌 가능 (여기서 OptimisticLockingFailureException 유발)
-    return issuedCouponRepository.save(issuedCoupon);
+    return savedCoupon;
   }
 
   @Deprecated // 분리된 조회/검증/저장 흐름은 useCoupon()로 대체 | 재시도/락 반영은 useCoupon()에서 사용하는 것을 권장.
@@ -191,19 +197,9 @@ public class IssuedCouponService {
     FirstJoinCouponResponse.from(issuedCoupon);
   }
 
-  /**
-   * 사용 처리 후 AFTER_COMMIT 시점에 이벤트 발행
-   * (선택) 외부 kafka 발행은 별도 이벤트 핸들러에서 port를 통해 실행.
-   * "쿠폰이 사용됨"이라는 비즈니스 도메인 사실이기 때문에 domain 계층이 적합함.
-   * domain Event 발행 -> (애플리케이션/인프라) 이벤트 핸들러가 수신 -> Integration Event로 변환 -> Kafka 발행
-   */
-  public UsedIssuedCouponResponse useCouponAndPublishEvent(UUID couponId, RequestUserDetails userDetails) {
-    UUID userId = userDetails.getUserId();
-    IssuedCoupon issued = useCoupon(couponId, userDetails); // 상태 변경 & 저장 (낙관적 락)
 
-    // 커밋 성공 시점에만 리스너가 실행됨
-    // AFTER_COMMIT 발행 (트랜잭션 커밋 후) | 여기서 말하는 aftercommit을 발행하면 어떤 결과가 도출되고 트랜잭션 ㅌ커밋 후 라는건 어떤 트랜잭션을 기준으로 하는건지..?
-    eventPublisher.publishEvent(new CouponUsedEvent(issued.getId(), userId));
+  public UsedIssuedCouponResponse useCouponAndPublishEvent(UUID couponId, RequestUserDetails userDetails) {
+    IssuedCoupon issued = useCoupon(couponId, userDetails); // 재시도 포함
     return UsedIssuedCouponResponse.from(issued);
   }
 
