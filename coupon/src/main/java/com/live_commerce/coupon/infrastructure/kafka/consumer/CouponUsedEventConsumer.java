@@ -23,7 +23,7 @@ public class CouponUsedEventConsumer {
 
   @KafkaListener(
           id = "coupon-used-listener",
-          topics = "${coupon.topics,coupon-used:coupons.CouponUsed.v1}",
+          topics = "${coupon.topics.coupon-used:coupons.CouponUsed.v1}",
           groupId = "${spring.kafka.consumer.group-id}"
       // containerFactory 지정 불필요함 :  기본 팩토리 사용 + yml 의 ask-mode=MANUAL_IMMEDIATE 적용 )
   )
