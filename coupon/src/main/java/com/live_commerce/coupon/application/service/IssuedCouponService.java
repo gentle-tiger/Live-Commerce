@@ -115,14 +115,6 @@ public class IssuedCouponService {
     return savedCoupon;
   }
 
-  @Deprecated // 분리된 조회/검증/저장 흐름은 useCoupon()로 대체 | 재시도/락 반영은 useCoupon()에서 사용하는 것을 권장.
-  private IssuedCoupon findIssuedCouponByIdAndUser(UUID couponId, RequestUserDetails userDetails) {
-    return issuedCouponRepository
-        .findByIdAndUserIdAndIsUsedFalse(couponId,
-            userDetails.getUserId()) // ID와 UserId로 발급된 쿠폰 중 사용하지 않은 쿠폰 반환.
-        .orElseThrow(() -> IssuedCouponException.notFound(couponId, userDetails.getUserId()));
-  }
-
   @Deprecated // 도메인에서 이미 검증하기 떄문에 서비스 계층에서 체크 불필요.
   private void checkIfCouponUsed(IssuedCoupon issuedCoupon) {
     if (issuedCoupon.isUsed()) {
@@ -145,13 +137,6 @@ public class IssuedCouponService {
         .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
     return GetIssuedCouponResponse.from(issuedCoupon);
   }
-
-//  private IssuedCoupon findByIdAndUserAndIsUsedFalse(UUID couponId,
-//      RequestUserDetails userDetails) {
-//    return issuedCouponRepository
-//        .findByIdAndUserIdAndIsUsedFalse(couponId, userDetails.getUserId())
-//        .orElseThrow(() -> IssuedCouponException.notFound(couponId, userDetails.getUserId()));
-//  }
 
   @Transactional(readOnly = true)
   public IssuedCouponListResponse getIssuedCoupons(RequestUserDetails userDetails) {
