@@ -64,7 +64,7 @@ public class IssuedCouponController {
   public ResponseEntity<ApiResponse<GetIssuedCouponResponse>> getIssuedCoupon(
       @PathVariable UUID couponId,
       @AuthenticationPrincipal RequestUserDetails userDetails) {
-    GetIssuedCouponResponse response = issuedCouponService.getIssuedCoupon(couponId, userDetails);
+    GetIssuedCouponResponse response = issuedCouponService.getIssuedCoupon(couponId, userDetails.getUserId());
     return ResponseUtil.success(response);
   }
 
