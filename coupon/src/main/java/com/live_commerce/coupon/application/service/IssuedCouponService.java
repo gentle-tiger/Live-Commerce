@@ -99,7 +99,7 @@ public class IssuedCouponService {
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   protected IssuedCoupon doUseCouponOnce(UUID couponId, UUID userId) {
     IssuedCoupon issuedCoupon = issuedCouponRepository
-        .findByIdAndUserIdAndIsUsedFalse(couponId, userId)
+        .findByIdAndUserIdAndStatus(couponId, userId, CouponUseStatus.ACTIVE)
         .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
 
     // 엔티티가 상태 전이 불변식(이미 사용/만료)인지 검증하는 로직
@@ -133,10 +133,10 @@ public class IssuedCouponService {
   // ======================= 조회 =======================
 
   @Transactional(readOnly = true)
-  public GetIssuedCouponResponse getIssuedCoupon(UUID couponId, RequestUserDetails userDetails) {
+  public GetIssuedCouponResponse getIssuedCoupon(UUID couponId, UUID userId) {
     IssuedCoupon issuedCoupon = issuedCouponRepository
-        .findByIdAndUserIdAndIsUsedFalse(couponId, userDetails.getUserId())
-        .orElseThrow(() -> IssuedCouponException.notFound(couponId, userDetails.getUserId()));
+        .findByIdAndUserIdAndStatus(couponId, userId, CouponUseStatus.ACTIVE)
+        .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
     return GetIssuedCouponResponse.from(issuedCoupon);
   }
 
@@ -213,7 +213,7 @@ public class IssuedCouponService {
 
     // 1) 미사용 쿠폰 조회 (Repository 직접 호출)
     IssuedCoupon issuedCoupon = issuedCouponRepository
-        .findByIdAndUserIdAndIsUsedFalse(couponId, userId)
+        .findByIdAndUserIdAndStatus(couponId, userId, CouponUseStatus.ACTIVE)
         .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
     checkIfCouponUsed(issuedCoupon);
     processCouponUsage(issuedCoupon);
