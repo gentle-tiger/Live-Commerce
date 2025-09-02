@@ -42,16 +42,16 @@ spring:
          spring.json.add.type.headers: true
          spring.json.type.mapping: >
            coupon-used: com.live_commerce.coupon.infrastructure.kafka.message.CouponUsedMessage
-#     여기 아래 설정들은 뭐지??
-      acks: all
-      retries: 10
-      enable.idempotence: true
-      delivery.timeout.ms: 120000
-      linger.ms: 10
-      batch.size: 32768
+         acks: all # 전송 후 ack 처리 방식 (모든 파티션의 ack)
+         max.in.flight.requests.per.connection: 1 # 최대 연결당 비동기 요청 수 설정
+      retries: 10 # 재시도 횟수
+      enable.idempotence: true # idempotence 활성화 (중복 방지)
+      delivery.timeout.ms: 120000 # 전송 타임아웃 설정
+      linger.ms: 10 # 지연 시간 설정
+      batch.size: 32768 # 배치 크기 설정
 
     consumer:
-      group-id: ${spring.application.name}m
+      group-id: ${spring.application.name}
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
@@ -62,7 +62,7 @@ spring:
           coupon-used:com.live_commerce.coupon.domain.event.CouponUsedEvent
 
     listener:
-      ack-mode: MANUAL_IMMEDIATE
+      ack-mode: MANUAL_IMMEDIATE # 수동 ack 처리 모드 설정
 
 gateway:
   base-url: http://localhost:19091
@@ -73,4 +73,6 @@ springdoc:
 
 coupon:
   topics:
-    coupon-used: coupons.CouponUsed.v1
+    coupon-used: coupons.CouponUsed.v1 # 쿠폰 사용 Kafka 토픽 설정
+  outbox:
+    enabled: true # Outbox 모드 활성화 (true: Outbox 모드, false: 직발행 모드)
