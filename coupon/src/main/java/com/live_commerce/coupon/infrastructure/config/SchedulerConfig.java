@@ -1,6 +1,5 @@
 package com.live_commerce.coupon.infrastructure.config;
 
-import javax.sql.DataSource;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
 import net.javacrumbs.shedlock.spring.annotation.EnableSchedulerLock;
@@ -8,6 +7,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.EnableScheduling;
+
+import javax.sql.DataSource;
 
 /**
  * 스케줄러 활성화 + ShedLock 분산락으로 클러스터에서 잡을 단 1회만 실행하도록 보장.
@@ -23,10 +24,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class SchedulerConfig {
 
   @Bean
-  public LockProvider lockProvider(DataSource ds) {
+  public LockProvider lockProvider(DataSource dataSource) {
     return new JdbcTemplateLockProvider(
         JdbcTemplateLockProvider.Configuration.builder()
-            .withJdbcTemplate(new JdbcTemplate(ds))
+            .withJdbcTemplate(new JdbcTemplate(dataSource))
             .usingDbTime() // db 서버 시간을 기준으로 락 만료를 계산 (노드 간 시계 드리프트 문제 방지)
             .build()
     );
