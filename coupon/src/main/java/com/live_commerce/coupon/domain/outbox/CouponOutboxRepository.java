@@ -1,12 +1,9 @@
 package com.live_commerce.coupon.domain.outbox;
 
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 import java.util.List;
 
-@Repository
 public interface CouponOutboxRepository extends JpaRepository<CouponOutbox, Long> {
 
   /**

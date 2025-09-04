@@ -19,7 +19,7 @@ import lombok.Setter;
 @Entity
 @Table(name = "coupon_outbox")
 @Getter
-//@Setter // 사용 시 주석 해제
+@Setter // 사용 시 주석 해제
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -78,7 +78,7 @@ public class CouponOutbox {
         .eventType(eventType)
         .payload(payload)
         .headers(headers)
-        .occurredAt(LocalDateTime.now())
+        .occurredAt(LocalDateTime.now()) // 현재 시점
         .status(OutboxStatus.PENDING) // default
         .attempts(0)
         .partitionKey(partitionKey).build();
