@@ -38,17 +38,21 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+      # 전용 매핑
+      acks: all                # 멱등성 / 모든 복제본 ack 후 성공 처리
+      retries: 10
+      batch-size: 32768        # 전용 매핑 사용 (또는 properties.batch.size 로 대체 가능)
+
+      # 네이티브 프로듀서/시리얼라이저 속성
       properties:
-         spring.json.add.type.headers: true
-         spring.json.type.mapping: >
-           coupon-used: com.live_commerce.coupon.infrastructure.kafka.message.CouponUsedMessage
-         acks: all # 전송 후 ack 처리 방식 (모든 파티션의 ack)
-         max.in.flight.requests.per.connection: 1 # 최대 연결당 비동기 요청 수 설정
-      retries: 10 # 재시도 횟수
-      enable.idempotence: true # idempotence 활성화 (중복 방지)
-      delivery.timeout.ms: 120000 # 전송 타임아웃 설정
-      linger.ms: 10 # 지연 시간 설정
-      batch.size: 32768 # 배치 크기 설정
+        enable.idempotence: true                   # 멱등성 / 중복 전송 방지
+        max.in.flight.requests.per.connection: 1   # 멱등성 / 순서 보장
+        delivery.timeout.ms: 120000                # 전송 최대 대기 시간
+        linger.ms: 10                              # 최대 10ms 모아 배치 전송 (처리량↑, 지연↑)
+        spring.json.add.type.headers: true
+        spring.json.type.mapping: >
+          coupon-used: com.live_commerce.coupon.infrastructure.kafka.message.CouponUsedMessage
 
     consumer:
       group-id: ${spring.application.name}
