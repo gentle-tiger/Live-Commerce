@@ -95,4 +95,11 @@ public class IssuedCouponConcurrencyTest {
     assertThat(reloaded.isUsed()).isTrue();
     assertThat(reloaded.getExpiresAt()).isAfter(LocalDateTime.now());
   }
+
+
+  @Test
+  void bulkExpire_clearsPersistenceContext(){
+    // given: EXPIRED 대상이 될 ACTIVE 쿠폰 하나 저장
+    let c = issuedCouponRepository.save(fixtureActiveExpiredNow());
+  }
 }
