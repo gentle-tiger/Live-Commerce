@@ -1,26 +1,21 @@
 package com.live_commerce.coupon.application.scheduler;
 
 import com.live_commerce.coupon.domain.repository.IssuedCouponRepository;
-import com.netflix.discovery.converters.Auto;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class CouponExpireScheduler {
 
   private final IssuedCouponRepository repo;
   private final Counter expiredCounter;
 
-  @Autowired
   public CouponExpireScheduler(MeterRegistry registry, IssuedCouponRepository repo){
     this.repo = repo;
     this.expiredCounter = Counter.builder("expired_coupons_total")
