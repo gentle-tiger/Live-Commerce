@@ -58,7 +58,7 @@ public class OutboxRelay {
     publishTimer.record(() -> { // 전체 틱 실행시간 계측
       int processed = 0;
       while(true){
-        int n = processBatch(200); // 배치 단위로 처리
+        int n = processBatch(200); // 배치 단위로 처리(프록시 경유 → @Transactional 보장)
          processed += n;
          if(n < 200) break; // 더 이상 처리할 게 없으면 종료
       }
@@ -76,11 +76,14 @@ public class OutboxRelay {
           var couponId = UUID.fromString(node.get("couponId").asText());
           var userId   = UUID.fromString(node.get("userId").asText());
           publisher.publishCouponUsedEvent(couponId, userId); // 외부 발행
+          row.setStatus(OutboxStatus.SENT);          // 성공 → SENT
+          row.setPublishedAt(LocalDateTime.now());   // 발행 시각 기록
         }else{
           log.warn("Unhandled eventType {}", row.getEventType());
+          row.setStatus(OutboxStatus.FAILED); // 미지원 타입은 재시도 불필요하게 격리
+          row.setPublishedAt(LocalDateTime.now());
+          row.setErrorMessage("Unhandled event type: " + row.getEventType());
         }
-        row.setStatus(OutboxStatus.SENT);          // 성공→ SENT
-        row.setPublishedAt(LocalDateTime.now());   // 발행 시각 기록
       }catch (Exception e){
         row.setAttempts(row.getAttempts() + 1);    // 시도 횟수 증가
         row.setStatus(row.getAttempts() >= 10 ? OutboxStatus.FAILED : OutboxStatus.PENDING); // 재시도 or 실패 확정
@@ -89,6 +92,7 @@ public class OutboxRelay {
         log.error("Outbox publish failed id={}, attempts={}", row.getId(), row.getAttempts(), e);
       }
     }
+//    outboxRepo.saveAll(rows); // native 결과가 비영속일 수 있어 저장/플러시로 보강(상태 전이 영속화)
     return rows.size();
   }
 
