@@ -16,9 +16,9 @@ public interface CouponOutboxRepository extends JpaRepository<CouponOutbox, Long
    */
   @Query(value = """
       SELECT *
-          FROM coupon_outbox
+          FROM coupons.coupon_outbox
       WHERE status = 'PENDING'
-      ORDER BY occurrend_at
+      ORDER BY occurred_at
       LIMIT :limit -- 한번에 처리할 최대 레코드 수
       FOR UPDATE SKIP LOCKED -- 잠금된 레코드는 건너뛰고, 처리할 수 있는 레코드만 선택
       """, nativeQuery = true)
