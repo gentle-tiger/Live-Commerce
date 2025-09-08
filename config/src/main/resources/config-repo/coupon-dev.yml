@@ -12,7 +12,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate           # 스키마 누락 시 즉시 실패(권장)
     properties:
       hibernate:
         show_sql: true
@@ -24,7 +24,9 @@ spring:
     username: postgres
     password: 8dostore
     driver-class-name: org.postgresql.Driver
-
+    hikari:
+      data-source-properties:
+        currentSchema: "coupons,public"  # PG JDBC -> search_path 설정
   cache:
     type: redis
   redis:
