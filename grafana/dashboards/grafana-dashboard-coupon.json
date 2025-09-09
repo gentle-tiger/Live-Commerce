@@ -1,0 +1,197 @@
+{
+  "title": "Coupon Service (Kafka/Outbox) Overview",
+  "uid": "coupon-overview",
+  "timezone": "browser",
+  "schemaVersion": 41,
+  "version": 1,
+  "tags": ["coupon", "kafka", "outbox", "prod"],
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+        "query": "label_values(up, env)",
+        "multi": true,
+        "includeAll": true,
+        "label": "Environment"
+      },
+      {
+        "name": "application",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+        "query": "label_values(up, application)",
+        "multi": true,
+        "includeAll": true,
+        "label": "Application"
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+        "query": "label_values(up{env=~\"$env\", application=~\"$application\"}, instance)",
+        "multi": true,
+        "includeAll": true,
+        "label": "Instance"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Instances up",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [
+        {"expr": "sum(up{env=~\"$env\", instance=~\"$instance\"})", "refId": "A"}
+      ],
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value"
+      },
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Coupon used per sec",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "coupon:used_per_sec:1m", "refId": "A"}],
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Use success ratio",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "coupon:use_success_ratio:5m", "refId": "A"}],
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Use conflicts per sec",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "coupon:use_conflict_per_sec:1m", "refId": "A"}],
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Use latency p50/p95/p99 (s)",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [
+        {"expr": "coupon:use_latency_p50_seconds:5m", "refId": "A", "legendFormat": "p50"},
+        {"expr": "coupon:use_latency_p95_seconds:5m", "refId": "B", "legendFormat": "p95"},
+        {"expr": "coupon:use_latency_p99_seconds:5m", "refId": "C", "legendFormat": "p99"}
+      ],
+      "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"unit": "s", "color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Retries per sec",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "coupon:use_retry_per_sec:1m", "refId": "A"}],
+      "gridPos": {"x": 12, "y": 8, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Expired per 5m",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "coupon:expired_per_min:5m", "refId": "A"}],
+      "gridPos": {"x": 18, "y": 8, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox pending",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "outbox_pending", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 16, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox publish avg sec",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "coupon:outbox_publish_avg_seconds:5m", "refId": "A"}],
+      "gridPos": {"x": 6, "y": 16, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"unit": "s", "color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox relay runs (count/5m)",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "rate(outbox_publish_duration_count[5m])", "refId": "A"}],
+      "gridPos": {"x": 12, "y": 16, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox publish duration (sum rate)",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "rate(outbox_publish_duration_sum[5m])", "refId": "A"}],
+      "gridPos": {"x": 18, "y": 16, "w": 6, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"unit": "s", "color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Kafka producer send rate",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "rate(kafka_producer_record_send_total[1m])", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 24, "w": 8, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Kafka producer error rate",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "rate(kafka_producer_record_error_total[5m])", "refId": "A"}],
+      "gridPos": {"x": 8, "y": 24, "w": 8, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Host CPU %",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "node:cpu_utilization:percent:5m", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 32, "w": 8, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "Host Mem %",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "node:mem_used:percent", "refId": "A"}],
+      "gridPos": {"x": 8, "y": 32, "w": 8, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"unit": "percent", "color": {"mode":"palette-classic"}}, "overrides": []}
+    },
+    {
+      "type": "timeseries",
+      "title": "GC pause p99 (s)",
+      "datasource": {"type": "prometheus", "uid": "PROM_DS"},
+      "targets": [{"expr": "jvm:gc_pause_p99_seconds:5m", "refId": "A"}],
+      "gridPos": {"x": 16, "y": 32, "w": 8, "h": 8},
+      "options": {"legend": {"showLegend": true, "displayMode": "list", "placement": "bottom"}, "tooltip": {"mode":"single","sort":"none"}},
+      "fieldConfig": {"defaults": {"unit": "s", "color": {"mode":"palette-classic"}}, "overrides": []}
+    }
+  ]
+}

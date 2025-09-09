@@ -1,0 +1,123 @@
+groups:
+  - name: coupon-recording
+    interval: 30s
+    rules:
+      # Traffic & outcomes
+      - record: coupon:used_per_sec:1m
+        expr: rate(coupon_used_total[1m])
+      - record: coupon:use_conflict_per_sec:1m
+        expr: rate(coupon_use_conflict_total[1m])
+      - record: coupon:use_retry_per_sec:1m
+        expr: rate(coupon_use_retry_total[1m])
+      - record: coupon:use_success_ratio:5m
+        expr: (rate(coupon_used_total[5m])) / clamp_min(rate(coupon_used_total[5m]) + rate(coupon_use_conflict_total[5m]), 1)
+
+      # Latency (requires histogram enabled for coupon_use_duration)
+      - record: coupon:use_latency_p50_seconds:5m
+        expr: histogram_quantile(0.50, sum(rate(coupon_use_duration_bucket[5m])) by (le))
+      - record: coupon:use_latency_p95_seconds:5m
+        expr: histogram_quantile(0.95, sum(rate(coupon_use_duration_bucket[5m])) by (le))
+      - record: coupon:use_latency_p99_seconds:5m
+        expr: histogram_quantile(0.99, sum(rate(coupon_use_duration_bucket[5m])) by (le))
+
+      # Expiration & scheduler
+      - record: coupon:expired_per_min:5m
+        expr: increase(coupon_expired_total[5m])
+
+      # Outbox
+      - record: coupon:outbox_publish_avg_seconds:5m
+        expr: rate(outbox_publish_duration_sum[5m]) / clamp_min(rate(outbox_publish_duration_count[5m]), 0.0000001)
+
+      # Host & JVM summaries
+      - record: node:cpu_utilization:percent:5m
+        expr: 100 * (1 - avg by (instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])))
+      - record: node:mem_used:percent
+        expr: 100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+      - record: node:disk_used:percent
+        expr: 100 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} * 100)
+      - record: jvm:gc_pause_p99_seconds:5m
+        expr: histogram_quantile(0.99, sum by (le)(rate(jvm_gc_pause_seconds_bucket[5m])))
+
+  - name: coupon-alerts
+    interval: 30s
+    rules:
+      # 1) High conflict ratio -> possible contention / bugs / load issues
+      - alert: CouponUseConflictHigh
+        expr: (rate(coupon_use_conflict_total[5m]) / clamp_min(rate(coupon_used_total[5m]) + rate(coupon_use_conflict_total[5m]), 1)) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: coupon
+        annotations:
+          summary: 'Coupon conflict ratio high (>10%)'
+          description: 'Conflicts are {{ $value | printf "%.2f" }} of attempts over 5m. Investigate optimistic lock retries or expiration rejects.'
+
+      # 2) Latency SLO breached at p99
+      - alert: CouponUseLatencyP99High
+        expr: coupon:use_latency_p99_seconds:5m > 0.3
+        for: 10m
+        labels:
+          severity: critical
+          team: platform
+          service: coupon
+        annotations:
+          summary: 'Coupon use latency p99 > 300ms'
+          description: 'p99 use latency is {{ $value }}s for 10m. Check DB, locks, or downstream latency.'
+
+      # 3) Outbox backlog growing / relay stuck
+      - alert: OutboxPendingGrowing
+        expr: outbox_pending > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+          service: coupon
+        annotations:
+          summary: 'Outbox pending > 1000 for 10m'
+          description: 'Relay may be stuck or Kafka unavailable.'
+
+      - alert: OutboxRelayStuck
+        expr: (rate(outbox_publish_duration_count[10m]) == 0) and (outbox_pending > 0)
+        for: 10m
+        labels:
+          severity: critical
+          team: platform
+          service: coupon
+        annotations:
+          summary: 'Outbox relay not publishing'
+          description: 'No relay runs in 10m while backlog exists.'
+
+      # 4) No coupon usage for a prolonged period (prod)
+      - alert: CouponUsageDropToZero
+        expr: absent(rate(coupon_used_total{env="prod"}[15m]))
+        for: 15m
+        labels:
+          severity: warning
+          team: platform
+          service: coupon
+        annotations:
+          summary: 'No coupon usage observed in prod for 15m'
+          description: 'Traffic may be down or instrumentation missing.'
+
+      # 5) Kafka producer errors
+      - alert: KafkaProducerErrors
+        expr: rate(kafka_producer_record_error_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+          service: coupon
+        annotations:
+          summary: 'Kafka producer errors detected'
+          description: 'Record send errors over last 5m. Check broker or network.'
+
+      # 6) Instance down
+      - alert: InstanceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Instance down'
+          description: '{{ $labels.job }} / {{ $labels.instance }} is down.'

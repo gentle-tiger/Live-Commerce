@@ -1,0 +1,17 @@
+apiVersion: 1
+
+deleteDatasources:
+  - name: PROM_DS
+    orgId: 1
+
+datasources:
+  - name: PROM_DS
+    uid: PROM_DS            # ← 추가 (중요)
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090  # ❗ 실제 Prometheus 주소
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 10s

@@ -1,6 +1,7 @@
 rule_files:
   - "rules/notification-rules.yml"
   - "rules/alert-notification.yml"
+  - "/etc/prometheus/rules/prometheus-rules-coupon.yml"
 
 alerting:
   alertmanagers:
@@ -23,3 +24,24 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:19110']
+
+  - job_name: 'coupon-server'
+    honor_labels: true
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['coupon:19100']   # ❗쿠폰 컨테이너 내부 포트
+        labels:
+          env: prod
+          application: coupon
+
+  - job_name: 'host' # 컨테이너/호스트 머신의 시스템 리소스 상태를 Prometheus로 수집
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          env: prod
+
+  - job_name: 'kafka-exporter'  # Kafka 브로커/토픽/컨슈머 그룹 상태를 Prometheus로 수집
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+        labels:
+          env: prod
