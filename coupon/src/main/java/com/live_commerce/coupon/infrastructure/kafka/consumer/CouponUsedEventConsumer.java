@@ -27,6 +27,7 @@ public class CouponUsedEventConsumer {
           groupId = "${spring.kafka.consumer.group-id}"
       // containerFactory 지정 불필요함 :  기본 팩토리 사용 + yml 의 ask-mode=MANUAL_IMMEDIATE 적용 )
   )
+
   public void onMessage(
       @Payload CouponUsedEvent event,
       @Header(KafkaHeaders.RECEIVED_KEY) String key,

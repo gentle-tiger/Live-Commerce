@@ -1,13 +1,11 @@
 rule_files:
-  - "rules/notification-rules.yml"
-  - "rules/alert-notification.yml"
-  - "/etc/prometheus/rules/prometheus-rules-coupon.yml"
+  - "/etc/prometheus/rules/*.yml"
 
 alerting:
   alertmanagers:
     - static_configs:
         - targets:
-            - localhost:9093
+            - alertmanager:9093
 
 scrape_configs:
   - job_name: 'payment-service'
@@ -29,7 +27,7 @@ scrape_configs:
     honor_labels: true
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ['coupon:19100']   # ❗쿠폰 컨테이너 내부 포트
+      - targets: ['host.docker.internal:19100']
         labels:
           env: prod
           application: coupon

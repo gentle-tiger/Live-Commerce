@@ -34,11 +34,17 @@ public class IssuedCoupon {
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private CouponUseStatus status; /** 추가 */
+  private CouponUseStatus status = CouponUseStatus.ACTIVE; /** 추가 */
 
   @Version
   private Long version;
 
+  @PrePersist
+  void prePersist() {
+    if(status == null) {
+      status = CouponUseStatus.ACTIVE;
+    }
+  }
   @Builder
   public IssuedCoupon(UUID id, UUID userId, String couponCode, boolean isUsed, LocalDateTime usedAt,
       LocalDateTime expiresAt) {

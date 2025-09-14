@@ -7,18 +7,16 @@ eureka:
       defaultZone: http://localhost:19090/eureka/
 
 spring:
-  application:
-    name: coupon
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate           # 스키마 누락 시 즉시 실패(권장)
     properties:
       hibernate:
-        show_sql: true
-        format_sql: true
+        show_sql: false # 임시
+        format_sql: false # 임시
         use_sql_comments: true
         default_schema: coupons
+        generate_statistics: false # 임시
   datasource:
     url: jdbc:postgresql://localhost:5432/livecommerce
     username: postgres
@@ -34,6 +32,8 @@ spring:
     port: ${REDIS_PORT:6379}
     password: ${REDIS_PASSWORD:}
 
+
+
   kafka:
     bootstrap-servers: localhost:9092
 
@@ -42,27 +42,26 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
       # 전용 매핑
-      acks: all                # 멱등성 / 모든 복제본 ack 후 성공 처리
+      acks: all
       retries: 10
-      batch-size: 32768        # 전용 매핑 사용 (또는 properties.batch.size 로 대체 가능)
+      batch-size: 32768
 
       # 네이티브 프로듀서/시리얼라이저 속성
       properties:
-        enable.idempotence: true                   # 멱등성 / 중복 전송 방지
-        max.in.flight.requests.per.connection: 1   # 멱등성 / 순서 보장
-        delivery.timeout.ms: 120000                # 전송 최대 대기 시간
-        linger.ms: 10                              # 최대 10ms 모아 배치 전송 (처리량↑, 지연↑)
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+        delivery.timeout.ms: 120000
+        linger.ms: 10
         spring.json.add.type.headers: true
         spring.json.type.mapping: >
           coupon-used: com.live_commerce.coupon.infrastructure.kafka.message.CouponUsedMessage
 
     consumer:
-      group-id: ${spring.application.name}
+      group-id: coupon # 이게 빠졌었네;;
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: com.live_commerce.*
-#        com.live_commerce.user.infrastructure.kafka.event, com.live_commerce.coupon.infrastructure.kafka.event
         spring.json.type.mapping: >
           first-join-coupon: com.live_commerce.coupon.infrastructure.kafka.event.FirstJoinCouponEvent,
           coupon-used:com.live_commerce.coupon.domain.event.CouponUsedEvent
@@ -70,6 +69,26 @@ spring:
     listener:
       ack-mode: MANUAL_IMMEDIATE # 수동 ack 처리 모드 설정
 
+logging:
+  level:
+    # 애플리케이션 기본
+    root: INFO
+    # 하이버네이트 SQL/바인딩 노이즈 억제
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.type.descriptor.sql: WARN
+    org.springframework.security: DEBUG
+    # 카프카 클라이언트 노이즈 억제
+    org.apache.kafka: WARN
+    # 스케줄러/릴레이와 컨슈머는 운영 시 INFO, 대량이면 DEBUG로 내림
+    com.lc.coupon.application.relay: INFO
+    com.lc.coupon.infra.kafka.consumer: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
 gateway:
   base-url: http://localhost:19091
 
@@ -82,3 +101,4 @@ coupon:
     coupon-used: coupons.CouponUsed.v1 # 쿠폰 사용 Kafka 토픽 설정
   outbox:
     enabled: true # Outbox 모드 활성화 (true: Outbox 모드, false: 직발행 모드)
+

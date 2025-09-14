@@ -6,45 +6,49 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets; // [ADDED]
 import java.util.List;
 import java.util.UUID;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-@Component
 public class AuthenticationFilter extends OncePerRequestFilter {
 
+	// 필터를 아예 적용하지 않을 경로들
+	private final RequestMatcher skipMatcher = new OrRequestMatcher(
+			new AntPathRequestMatcher("/actuator/**"),
+			new AntPathRequestMatcher("/swagger-ui/**"),
+			new AntPathRequestMatcher("/v3/api-docs/**"),
+			new AntPathRequestMatcher("/api/v1/auth/**"),
+			new AntPathRequestMatcher("/api/v1/issued-coupons/*/signup-first"),
+			new AntPathRequestMatcher("/**", HttpMethod.OPTIONS.name())
+	);
+
 	@Override
-	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-		throws ServletException, IOException {
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		return skipMatcher.matches(request); // true면 doFilterInternal 자체가 실행되지 않음
+	}
 
-		String requestUri = request.getRequestURI();
-
-		// 인증이 필요 없는 경로는 필터를 통과시킴
-		if ((requestUri.startsWith("/api/v1/auth/") &&
-			!requestUri.startsWith("/api/v1/auth/approve") &&
-			!requestUri.equals("/api/v1/auth/logout")) ||
-			(requestUri.startsWith("/api/v1/issued-coupons/") && requestUri.endsWith("/signup-first")) ||
-			requestUri.startsWith("/swagger-ui/") ||
-			requestUri.startsWith("/v3/api-docs") ||
-			requestUri.startsWith("/actuator"))
-		{
-			filterChain.doFilter(request, response);
-			return;
-		}
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+			throws ServletException, IOException {
 
 		// 요청 헤더에서 사용자 정보 추출
 		String userIdHeader = request.getHeader("X-User-Id");
-		String username = request.getHeader("X-User-Username");
-		String role = request.getHeader("X-User-Role");
+		String username     = request.getHeader("X-User-Username");
+		String role         = request.getHeader("X-User-Role");
 
 		if (userIdHeader == null || username == null || role == null) {
-			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
 			return;
 		}
 
@@ -64,11 +68,11 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 		UserDetails userDetails = new RequestUserDetails(userId, username, authorities);
 
 		// 인증 정보 설정
-		UsernamePasswordAuthenticationToken authentication =
-			new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
-		SecurityContextHolder.getContext().setAuthentication(authentication);
+		SecurityContextHolder.getContext().setAuthentication(
+				new UsernamePasswordAuthenticationToken(userDetails, null, authorities)
+		);
 
 		// 필터 체인으로 넘김
-		filterChain.doFilter(request, response);
+		chain.doFilter(request, response);
 	}
 }

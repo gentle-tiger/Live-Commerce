@@ -2,11 +2,16 @@ package com.live_commerce.coupon.infrastructure.config;
 
 import com.live_commerce.coupon.infrastructure.filter.AuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,33 +24,48 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-  private final AuthenticationFilter authenticationFilter;
-
   @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
+  AuthenticationFilter authenticationFilter() {
+    return new AuthenticationFilter();
   }
 
   @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    // HTTP 보안 설정
-    http
-        .csrf((csrf) -> csrf.disable())  // CSRF 비활성화
-        .sessionManagement(session -> session.sessionCreationPolicy(
-            SessionCreationPolicy.STATELESS)) // 세션 상태를 사용하지 않음
+  FilterRegistrationBean<AuthenticationFilter> disableGlobalRegistration(AuthenticationFilter f) {
+    var reg = new FilterRegistrationBean<>(f);
+    reg.setEnabled(false); // ★ 전역 등록 끔
+    return reg;
+  }
+
+  // 1) /actuator/** 전용: 인증/필터 모두 제외
+  @Bean @Order(0)
+  SecurityFilterChain actuator(HttpSecurity http) throws Exception {
+    return http
+        .securityMatcher(EndpointRequest.toAnyEndpoint()) // Actuator 전용
+        .csrf(AbstractHttpConfigurer::disable)
+        .authorizeHttpRequests(a -> a.anyRequest().permitAll())
+        .build();
+  }
+
+  @Bean @Order(1)
+  public SecurityFilterChain app(HttpSecurity http, AuthenticationFilter authenticationFilter) throws Exception {
+    return http
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .addFilterBefore(authenticationFilter, UsernamePasswordAuthenticationFilter.class)
         .authorizeHttpRequests(auth -> auth
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+            // ✅ 공개 엔드포인트
             .requestMatchers(
-                "/api/v1/auth/**", // 인증되지 않은 경로
                 "/swagger-ui/**",
                 "/v3/api-docs/**",
-                "/actuator/**",
-                "/api/v1/issued-coupons/{userId:[a-z0-9\\-]+}/signup-first"
-            ).permitAll() // 인증 없이 접근 가능
-            .anyRequest().authenticated() // 그 외의 요청은 인증 필요
+                "/api/v1/auth/**",
+                "/api/v1/issued-coupons/*/signup-first"
+            ).permitAll()
+            // ✅ 우선 인증만 요구(403 원인 파악용)
+            .requestMatchers(HttpMethod.POST, "/api/v1/coupon-policies").authenticated()
+            // 나머지는 인증 필요
+            .anyRequest().authenticated()
         )
-        .addFilterBefore(authenticationFilter,
-            UsernamePasswordAuthenticationFilter.class); // 인증 필터 추가
-
-    return http.build();
+        .build();
   }
 }

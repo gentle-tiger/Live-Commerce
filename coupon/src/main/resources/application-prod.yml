@@ -7,20 +7,18 @@ eureka:
       defaultZone: http://eureka:19090/eureka/
 
 spring:
-  application:
-    name: coupon
   config:
     import: optional:file:.env[.properties]
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        show_sql: true
-        format_sql: true
+        show_sql: false # 임시
+        format_sql: false # 임시
         use_sql_comments: true
         default_schema: coupons
+        generate_statistics: false # 임시
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -31,7 +29,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,refresh
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: when_authorized
@@ -48,6 +46,20 @@ management:
   zipkin:
     tracing:
       endpoint: http://zipkin:9411/api/v2/spans
+
+#logging:
+#  level:
+#    # 애플리케이션 기본
+#    root: INFO
+#    # 하이버네이트 SQL/바인딩 노이즈 억제
+#    org.hibernate.SQL: WARN
+#    org.hibernate.orm.jdbc.bind: WARN
+#    org.hibernate.type.descriptor.sql: WARN
+#    # 카프카 클라이언트 노이즈 억제
+#    org.apache.kafka: WARN
+#    # 스케줄러/릴레이와 컨슈머는 운영 시 INFO, 대량이면 DEBUG로 내림
+#    com.lc.coupon.application.relay: INFO
+#    com.lc.coupon.infra.kafka.consumer: INFO
 
 gateway:
   base-url: http://gateway:19091
