@@ -1,5 +1,6 @@
 plugins {
 	id 'java'
+	id 'groovy'
 	id 'org.springframework.boot' version '3.4.4'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -29,6 +30,9 @@ ext {
 }
 
 dependencies {
+	// --- test(Groovy + nGrinder) ---
+	testImplementation 'org.ngrinder:ngrinder-groovy:3.5.2' // GrinderRunner 및 런타임 포함
+	testImplementation 'org.hamcrest:hamcrest:2.2'
 	// ShedLock
 	implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
 	implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${shedlockVersion}"
@@ -73,6 +77,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation 'junit:junit:4.13.2'
+	testRuntimeOnly 'org.junit.vintage:junit-vintage-engine'
 
 	// JetBrains 어노테이션
 	compileOnly("org.jetbrains:annotations:24.1.0")
