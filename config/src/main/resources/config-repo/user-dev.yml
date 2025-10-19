@@ -82,7 +82,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: refresh
+        include: refresh,health
 
 gateway:
   base-url: http://localhost:19091
