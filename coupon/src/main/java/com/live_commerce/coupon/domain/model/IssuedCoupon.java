@@ -46,12 +46,13 @@ public class IssuedCoupon {
     }
   }
   @Builder
-  public IssuedCoupon(UUID id, UUID userId, String couponCode, boolean isUsed, LocalDateTime usedAt,
+  public IssuedCoupon(UUID id, UUID userId, String couponCode, boolean isUsed, CouponUseStatus status,  LocalDateTime usedAt,
       LocalDateTime expiresAt) {
     this.id = id;
     this.userId = userId;
     this.couponCode = couponCode;
     this.isUsed = isUsed;
+    this.status = status;
     this.usedAt = usedAt;
     this.expiresAt = expiresAt;
   }
@@ -85,8 +86,19 @@ public class IssuedCoupon {
     this.usedAt =  now;
   }
 
+  /**
+   * 만료 처리 로직 비교:
+   *
+   * [옵션 1] !expiresAt.isAfter(now)
+   * - 의미: expiresAt <= now
+   * - 같은 시간도 만료 처리 ✅
+   *
+   * [옵션 2] expiresAt.isBefore(now)
+   * - 의미: expiresAt < now
+   * - 과거 시간만 만료 처리 (같은 시간 제외)
+   */
   public void expireCoupon(LocalDateTime now){
-    if(status == CouponUseStatus.ACTIVE && expiresAt.isAfter(now)){ // !expiresAt.isAfter(now)를 쓰면 서버/배치 결과가 일치
+    if(status == CouponUseStatus.ACTIVE && !expiresAt.isAfter(now)){ // !expiresAt.isAfter(now)를 쓰면 서버/배치 결과가 일치
       this.status = CouponUseStatus.EXPIRED;
       this.isUsed = false; // 호환(USED가 아니므로 false로 변환)
     }
