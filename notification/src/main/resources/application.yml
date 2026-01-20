@@ -39,6 +39,12 @@ management:
     metrics.export.enabled: true
 
   metrics:
+    # ✨ 추가: 모든 메트릭에 자동으로 태그를 붙여줌
+    # Grafana에서 여러 서비스를 구분할 때 유용
+    tags:
+      application: notification-service  # 서비스 이름 태그
+      env: dev                          # 환경 태그 (dev/prod)
+
     distribution:
       # 1) 히스토그램
       percentiles-histogram:
