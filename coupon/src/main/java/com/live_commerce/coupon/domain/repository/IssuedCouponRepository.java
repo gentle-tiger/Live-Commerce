@@ -62,4 +62,6 @@ public interface IssuedCouponRepository extends JpaRepository<IssuedCoupon, UUID
 
   @Deprecated
   List<IssuedCoupon> findByUserId(UUID userId);
+
+  Optional<IssuedCoupon> findByIdAndUserId(UUID couponId, UUID userId);
 }

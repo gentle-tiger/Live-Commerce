@@ -3,6 +3,7 @@ plugins {
 	id 'groovy'
 	id 'org.springframework.boot' version '3.4.4'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'  // JaCoCo 플러그인 추가: 코드 커버리지 측정 도구
 }
 
 group = 'com.live-commerce'
@@ -27,12 +28,17 @@ repositories {
 ext {
 	set('springCloudVersion', "2024.0.1")
 	shedlockVersion = '5.10.0'
+	groovyCompat = '3.0.21' // JDK 17 호환
 }
 
 dependencies {
 	// --- test(Groovy + nGrinder) ---
-	testImplementation 'org.ngrinder:ngrinder-groovy:3.5.2' // GrinderRunner 및 런타임 포함
 	testImplementation 'org.hamcrest:hamcrest:2.2'
+	// Groovy 테스트 파일 컴파일에 **필수**
+	testImplementation platform("org.codehaus.groovy:groovy-bom:${groovyCompat}")
+	testImplementation "org.codehaus.groovy:groovy"        // 표준 런타임
+	testImplementation "org.codehaus.groovy:groovy-json"   // JsonSlurper 사용
+
 	// ShedLock
 	implementation "net.javacrumbs.shedlock:shedlock-spring:${shedlockVersion}"
 	implementation "net.javacrumbs.shedlock:shedlock-provider-jdbc-template:${shedlockVersion}"
@@ -92,4 +98,122 @@ dependencyManagement {
 
 tasks.named('test') {
 	useJUnitPlatform()
+
+	// 시스템 속성을 테스트 JVM으로 전달
+	systemProperties(System.properties.findAll { key, value ->
+		key.toString().startsWith('coupon.')
+	})
+
+	// JaCoCo: 테스트 실행 시 커버리지 데이터 수집
+	finalizedBy jacocoTestReport  // 테스트 완료 후 자동으로 리포트 생성
 }
+
+// ============================================
+// JaCoCo 커버리지 측정 설정
+// ============================================
+
+// JaCoCo 버전 및 기본 설정
+jacoco {
+	toolVersion = "0.8.12"  // JaCoCo 최신 안정 버전 (2024년 기준)
+	// JDK 17과 완벽하게 호환되는 버전
+}
+
+// JaCoCo 테스트 리포트 태스크 설정
+jacocoTestReport {
+	// test 태스크가 먼저 실행되어야 함
+	dependsOn test
+
+	// 생성할 리포트 형식 지정
+	reports {
+		// 1. XML 리포트: CI/CD 도구나 SonarQube 등에서 파싱 가능
+		xml.required = true
+		xml.destination file("${buildDir}/reports/jacoco/test/jacocoTestReport.xml")
+
+		// 2. HTML 리포트: 브라우저로 보기 좋은 시각적 리포트
+		html.required = true
+		html.destination file("${buildDir}/reports/jacoco/test/html")
+
+		// 3. CSV 리포트: 스프레드시트로 분석 가능
+		csv.required = true
+		csv.destination file("${buildDir}/reports/jacoco/test/jacocoTestReport.csv")
+	}
+
+	// 커버리지 측정에서 제외할 클래스 패턴
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+				// 1. 설정 파일들 (순수 설정만 담당, 비즈니스 로직 없음)
+				'**/config/**',
+				'**/infrastructure/config/**',
+
+				// 2. DTO/Request/Response (단순 데이터 전달 객체)
+				'**/dto/**',
+				'**/request/**',
+				'**/response/**',
+
+				// 3. Exception 클래스 (단순 예외 정의)
+				'**/exception/**',
+
+				// 4. 애플리케이션 진입점
+				'**/CouponApplication.class',
+
+				// 5. 엔티티의 Q클래스 (QueryDSL 자동 생성)
+				'**/Q*.class'
+			])
+		}))
+	}
+}
+
+// JaCoCo 커버리지 검증 태스크
+jacocoTestCoverageVerification {
+	dependsOn jacocoTestReport
+
+	violationRules {
+		rule {
+			// 전체 프로젝트에 대한 규칙
+			enabled = true
+
+			// 측정 단위: BUNDLE = 전체 프로젝트
+			element = 'BUNDLE'
+
+			// 라인 커버리지 최소 70% 요구
+			limit {
+				counter = 'LINE'        // 측정 대상: 코드 라인
+				value = 'COVEREDRATIO' // 측정 방식: 커버된 비율
+				minimum = 0.70         // 최소 70%
+			}
+
+			// 브랜치 커버리지 최소 60% 요구
+			limit {
+				counter = 'BRANCH'      // 측정 대상: 분기문 (if, switch 등)
+				value = 'COVEREDRATIO'
+				minimum = 0.60          // 최소 60%
+			}
+		}
+
+		rule {
+			// 클래스별 규칙
+			enabled = true
+			element = 'CLASS'
+
+			// 제외할 클래스 패턴 (설정, DTO 등)
+			excludes = [
+				'*.config.*',
+				'*.dto.*',
+				'*.exception.*',
+				'*.*Application'
+			]
+
+			// 각 클래스의 라인 커버리지 최소 50%
+			limit {
+				counter = 'LINE'
+				value = 'COVEREDRATIO'
+				minimum = 0.50
+			}
+		}
+	}
+}
+
+// check 태스크에 커버리지 검증 추가 (선택 사항)
+// 주석 처리: 초기에는 부담스러울 수 있어 수동 실행만 가능하게 설정
+// check.dependsOn jacocoTestCoverageVerification

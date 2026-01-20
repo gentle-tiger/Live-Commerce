@@ -99,20 +99,25 @@ public class IssuedCouponService {
    */
   @Transactional(propagation = Propagation.REQUIRES_NEW)
   protected IssuedCoupon doUseCouponOnce(UUID couponId, UUID userId) {
-    IssuedCoupon issuedCoupon = issuedCouponRepository
-        .findByIdAndUserIdAndStatus(couponId, userId, CouponUseStatus.ACTIVE)
+    // 1. 상태와 무관하게 먼저 조회
+    IssuedCoupon coupon = issuedCouponRepository
+        .findByIdAndUserId(couponId, userId)
         .orElseThrow(() -> IssuedCouponException.notFound(couponId, userId));
 
-    // 엔티티가 상태 전이 불변식(이미 사용/만료)인지 검증하는 로직
-    issuedCoupon.useCoupon();
+    // 2. 도메인 객체가 상태 전이 규칙을 검증
+    if(coupon.getStatus() != CouponUseStatus.ACTIVE){
+      // 이미 사용된 경우 -> 명확한 409 Conflict
+      throw IssuedCouponException.alreadyUsed(couponId);
+    }
 
-    IssuedCoupon savedCoupon = issuedCouponRepository.save(issuedCoupon);
+    // 3. 상태 변경 | 엔티티가 상태 전이 불변식(이미 사용/만료)인지 검증하는 로직
+    coupon.useCoupon();
 
     // 🔁 이동: 내부(REQUIRES_NEW) 트랜잭션에서 발행 → AFTER_COMMIT 리스너는 이 커밋을 기준으로 실행
-    eventPublisher.publishEvent(new CouponUsedEvent(savedCoupon.getId(), userId));
+    eventPublisher.publishEvent(new CouponUsedEvent(coupon.getId(), userId));
 
-    // @Version 충돌 가능 (여기서 OptimisticLockingFailureException 유발)
-    return savedCoupon;
+    // 4. 저장 시 @Version 충돌 가능 (여기서 OptimisticLockingFailureException 유발)
+    return issuedCouponRepository.save(coupon);
   }
 
   @Deprecated // 도메인에서 이미 검증하기 떄문에 서비스 계층에서 체크 불필요.
