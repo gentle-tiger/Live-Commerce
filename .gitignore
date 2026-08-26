@@ -31,3 +31,6 @@ test-output/
 # ========== 환경변수 ==========
 .env
 .env.*
+
+.mcp.json
+settings.local.json
