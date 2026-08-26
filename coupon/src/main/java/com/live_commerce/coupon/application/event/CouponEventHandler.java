@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-@ConditionalOnProperty(name = "coupon-outbox-enabled", havingValue = "false", matchIfMissing = true)
+/* 플래그 이름은 CouponEventOutboxHandler/OutboxRelay와 반드시 동일해야 한다.
+   (과거 "coupon-outbox-enabled" 오타로 이 빈이 항상 등록돼 Outbox 모드에서도 이중 발행이 발생했음) */
+@ConditionalOnProperty(name = "coupon.outbox.enabled", havingValue = "false", matchIfMissing = true)
 @Component
 @RequiredArgsConstructor
 public class CouponEventHandler {

@@ -60,14 +60,15 @@ class IssuedCouponControllerV2Test {
         UUID couponId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        UsedIssuedCouponResponse mockResponse = UsedIssuedCouponResponse.builder()
-                .issuedCouponId(couponId)
-                .couponCode("WINTER_SALE")
-                .userId(userId)
-                .isUsed(true)
-                .usedAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusDays(30))
-                .build();
+        // UsedIssuedCouponResponse는 record라 builder()가 없다 → 정규 생성자 사용
+        UsedIssuedCouponResponse mockResponse = new UsedIssuedCouponResponse(
+                couponId,
+                "WINTER_SALE",
+                userId,
+                true,
+                LocalDateTime.now(),
+                LocalDateTime.now().plusDays(30)
+        );
 
         // Service의 useCouponAndPublishEvent 메서드가 호출되면 mockResponse 반환
         given(issuedCouponService.useCouponAndPublishEvent(eq(couponId), any(RequestUserDetails.class)))
