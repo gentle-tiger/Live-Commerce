@@ -2,6 +2,7 @@ package com.live_commerce.notification.infrastructure.metrics;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Component;
 
 /**
@@ -40,6 +41,17 @@ public class NotificationMetrics {
     private final Counter notificationRetry;          // 재시도한 알림 수
     private final Counter dlqMessageCount;            // DLQ로 이동한 메시지 수
 
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Timer: 소요 시간의 분포(개수/합계/히스토그램 버킷)를 기록하는 메트릭
+    // - Counter만으로는 "몇 건 나갔나"만 알 뿐 "얼마나 걸렸나"를 못 잰다.
+    //   P95/P99 지연을 뽑으려면 Timer가 있어야 한다.
+    // - 버킷/퍼센타일은 application.yml의
+    //   management.metrics.distribution 설정에서 메트릭 이름별로 켠다.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    private final MeterRegistry registry;             // Timer.start()에 필요
+    private final Timer notificationSendTimer;        // 수신자 1명에게 보내는 데 걸린 시간
+    private final Timer notificationConsumeTimer;     // Consumer가 메시지 1건을 처리한 전체 시간
 
     /**
      * 생성자: MeterRegistry를 받아서 메트릭 등록
@@ -52,6 +64,8 @@ public class NotificationMetrics {
      * @param registry Spring Boot가 자동으로 주입해주는 MeterRegistry
      */
     public NotificationMetrics(MeterRegistry registry) {
+
+        this.registry = registry;
 
         // ────────────────────────────────────────────────────────────
         // 1️⃣ 알림 전송 성공 Counter
@@ -94,6 +108,60 @@ public class NotificationMetrics {
                 .description("DLQ로 이동한 메시지 수")
                 .register(registry);
 
+        // ────────────────────────────────────────────────────────────
+        // 5️⃣ 개별 발송 Timer
+        // ────────────────────────────────────────────────────────────
+        // 메트릭 이름: notification_send_seconds{_count,_sum,_bucket}
+        // 측정 구간: AlertSender.send() 호출 1건 (수신자 1명)
+        // 활용: 발송 채널 자체가 느려진 건지 판별
+        this.notificationSendTimer = Timer.builder("notification.send")
+                .description("수신자 1명에게 알림을 발송하는 데 걸린 시간")
+                .register(registry);
+
+        // ────────────────────────────────────────────────────────────
+        // 6️⃣ 메시지 처리 Timer
+        // ────────────────────────────────────────────────────────────
+        // 메트릭 이름: notification_consume_seconds{_count,_sum,_bucket}
+        // 측정 구간: Consumer가 메시지 1건을 받아 전체 수신자 발송을 마칠 때까지
+        // 활용: 이력서에 쓰는 "알림 발송 P99 지연"의 근거가 되는 지표
+        //       (http_server_requests는 트리거 API 응답 시간이라 발송 지연이 아니다)
+        this.notificationConsumeTimer = Timer.builder("notification.consume")
+                .description("Kafka 메시지 1건을 소비해 알림 발송을 마칠 때까지 걸린 시간")
+                .register(registry);
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Timer 기록용 메서드
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /**
+     * 개별 발송 구간의 소요 시간을 기록한다.
+     *
+     * <p>Timer.record(Runnable)은 내부가 try-finally라서, 발송이 예외로 끝나도
+     * 소요 시간은 기록되고 예외는 그대로 호출부로 전파된다.
+     * (실패 건도 지연 분포에 포함돼야 타임아웃으로 느려지는 상황을 잡을 수 있다)
+     *
+     * @param send 실제 발송 동작
+     */
+    public void recordSend(Runnable send) {
+        notificationSendTimer.record(send);
+    }
+
+    /**
+     * 메시지 처리 구간 계측 시작. 반환된 Sample을 {@link #stopConsume(Timer.Sample)}에 넘긴다.
+     *
+     * <p>processByMessage가 checked exception(IOException)을 던져서 Runnable로 감쌀 수 없어
+     * Sample 방식을 쓴다.
+     */
+    public Timer.Sample startConsume() {
+        return Timer.start(registry);
+    }
+
+    /**
+     * 메시지 처리 구간 계측 종료. 반드시 finally에서 호출해 실패 건도 함께 기록한다.
+     */
+    public void stopConsume(Timer.Sample sample) {
+        sample.stop(notificationConsumeTimer);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

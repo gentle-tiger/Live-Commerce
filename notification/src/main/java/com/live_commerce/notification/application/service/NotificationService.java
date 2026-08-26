@@ -15,6 +15,7 @@ import com.live_commerce.notification.presentation.dto.response.ReadNotification
 
 // ✨ 추가: Prometheus 메트릭 수집을 위한 import
 import com.live_commerce.notification.infrastructure.metrics.NotificationMetrics;
+import io.micrometer.core.instrument.Timer;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -130,11 +131,23 @@ public class NotificationService {
    * - 알림 전송 실패 시: metrics.incrementFailure()
    * - 재시도 발생 시: metrics.incrementRetry()
    * - DLQ 이동 시: metrics.incrementDLQ()
+   * - 메시지 1건 처리 전체 소요시간: notification.consume (Timer)
+   * - 수신자 1명 발송 소요시간: notification.send (Timer)
    *
    * @param msg Kafka에서 받은 알림 생성 이벤트
    * @throws IOException JSON 파일 읽기 실패 시
    */
   public void processByMessage(NotificationCreatedEvent msg) throws IOException {
+    // 📊 발송 지연(P95/P99)의 기준이 되는 구간. 조기 return·예외 모두 finally에서 기록된다.
+    Timer.Sample consumeSample = metrics.startConsume();
+    try {
+      doProcessByMessage(msg);
+    } finally {
+      metrics.stopConsume(consumeSample);
+    }
+  }
+
+  private void doProcessByMessage(NotificationCreatedEvent msg) throws IOException {
     Notification notification = notificationRepository.findById(msg.notificationId())
         .orElseThrow(() -> new IllegalArgumentException("알림 없음: " + msg.notificationId()));
 
@@ -151,9 +164,10 @@ public class NotificationService {
     for (UserInfo user : users) {
       try {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        // 알림 전송 시도
+        // 알림 전송 시도 (📊 notification.send Timer로 구간 계측)
+        // 실패해도 소요시간은 기록되고 예외는 아래 catch로 그대로 전파된다.
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        alertSender.send(user.id(), user.name(), "[kafka] messsage 테스트");
+        metrics.recordSend(() -> alertSender.send(user.id(), user.name(), "[kafka] messsage 테스트"));
 
         // ✨ 메트릭 수집: 알림 전송 성공
         // Prometheus Counter 1 증가: notification_sent_total{status="success"}

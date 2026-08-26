@@ -47,14 +47,22 @@ management:
 
     distribution:
       # 1) 히스토그램
+      #    notification.consume/send는 Micrometer Timer 이름 그대로 적는다.
+      #    (Prometheus에서는 notification_consume_seconds_bucket 등으로 노출됨)
       percentiles-histogram:
         "[http.server.requests]": true        # 대괄호 → IDE 경고 X
+        "[notification.consume]": true        # Consumer가 메시지 1건 처리한 시간 = 발송 지연
+        "[notification.send]": true           # 수신자 1명 발송 시간
       # 2) 퍼센타일
       percentiles:
         "[http.server.requests]": 0.95,0.99
+        "[notification.consume]": 0.95,0.99
+        "[notification.send]": 0.95,0.99
       # 3) SLO 버킷
       slo:
         "[http.server.requests]": 100ms,300ms,500ms,1s,3s
+        "[notification.consume]": 100ms,300ms,500ms,1s,3s,5s,10s
+        "[notification.send]": 10ms,50ms,100ms,300ms,500ms,1s
 
 
 
