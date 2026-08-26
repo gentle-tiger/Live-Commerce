@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.live_commerce.notification.application.alert.AlertSender;
 import com.live_commerce.notification.infrastructure.kafka.event.NotificationCreatedEvent;
 import com.live_commerce.notification.domain.model.Notification;
+import com.live_commerce.notification.domain.model.NotificationType;
 import com.live_commerce.notification.domain.repository.NotificationRepository;
 import com.live_commerce.notification.infrastructure.kafka.producer.NotificationEventProducer;
 import com.live_commerce.notification.presentation.dto.request.NotificationCreateRequest;
@@ -110,17 +111,34 @@ public class NotificationService {
   /**
    * 만기된 미발송 알림을 조회해 Kafka로 발행한다. 실제 발송은 Consumer가 수행한다.
    * fixedDelay: 이전 실행이 끝난 뒤 60초 후 재실행(발행이 밀릴 때 중첩 실행 방지).
+   *
+   * <p>발송 대상은 {@link #isSupported}로 거른다. 제거된 DB Polling 경로에 있던 필터를 옮겨온 것으로,
+   * 이게 없으면 아직 발송 로직이 없는 PRODUCT_RESTOCK 알림까지 토픽으로 나간다.
    */
   @Scheduled(fixedDelay = 60_000)
   public void publishScheduledNotifications() {
     List<Notification> list = notificationRepository.findAllByScheduledAtLessThanEqualAndIsSentFalse(
         LocalDateTime.now());
     for (Notification n : list) {
+      if (!isSupported(n.getType())) {
+        continue;
+      }
       NotificationCreatedEvent msg = new NotificationCreatedEvent(
           n.getId(), n.getType(), n.getTargetId(), n.getScheduledAt()
       );
       producer.sendNotificationCreated(msg);
     }
+  }
+
+  /**
+   * 현재 발송 로직이 구현된 알림 타입인지 판단한다.
+   *
+   * <p>DB Polling 경로의 checkType()을 그대로 옮겨왔다. PRODUCT_RESTOCK은 도메인 enum에만 있고
+   * 발송 로직이 없어, 거르지 않으면 Consumer가 소비만 하고 아무것도 못 보낸 채
+   * isSent=false로 남아 매 스케줄 주기마다 재발행된다.
+   */
+  private boolean isSupported(NotificationType type) {
+    return type == NotificationType.LIVE_BROADCAST;
   }
 
   /**
