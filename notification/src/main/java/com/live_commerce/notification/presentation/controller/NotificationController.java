@@ -43,14 +43,16 @@ public class NotificationController {
     return ResponseUtil.success("알림 삭제가 성공적으로 완료되었습니다.");
   }
 
-  // 직접 스케줄러 호출을 위한 API 추가 (테스트용)
-  @PostMapping("/trigger-scheduled-notifications")
-  public ResponseEntity<ApiResponse<String>> triggerScheduledNotifications() throws IOException {
-    notificationService.triggerScheduledNotifications();  // 메서드 호출
-    return ResponseUtil.success("🔥🔥🔥"+"테스트 알림 호출!");
-  }
-
-  // 직접 스케줄러 호출을 위한 API 추가 (테스트용, kafka)
+  /**
+   * ⚠️ 테스트/데모 전용 엔드포인트 (운영 발송 경로 아님).
+   *
+   * <p>운영에서는 NotificationService의 @Scheduled(fixedDelay = 60_000)가 만기 레코드를 조회해
+   * Kafka로 발행하고, Consumer가 실제 발송한다. 이 API는 그 스케줄러 주기를 기다리지 않고
+   * 발행→소비 경로를 즉시 태우기 위한 수동 트리거이며, 부하 테스트에서 발행 시점을 통제할 때 쓴다.
+   *
+   * <p>과거에 함께 있던 POST /trigger-scheduled-notifications(= DB Polling 후 동기 직접 발송)는
+   * Kafka 경로와 같은 레코드를 집어가 중복 발송 위험이 있어 경로째로 제거했다.
+   */
   @PostMapping("/trigger-kafka-notifications")
   public ResponseEntity<ApiResponse<String>> triggerKafkaNotifications() throws IOException {
    notificationService.triggerKafkaNotifications();

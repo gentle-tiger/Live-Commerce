@@ -3,18 +3,18 @@ package com.live_commerce.notification.application.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.live_commerce.notification.application.alert.AlertSender;
-import com.live_commerce.notification.application.alert.ConsoleAlertSender;
 import com.live_commerce.notification.infrastructure.kafka.event.NotificationCreatedEvent;
 import com.live_commerce.notification.domain.model.Notification;
-import com.live_commerce.notification.domain.model.NotificationType;
 import com.live_commerce.notification.domain.repository.NotificationRepository;
 import com.live_commerce.notification.infrastructure.kafka.producer.NotificationEventProducer;
-import com.live_commerce.notification.presentation.dto.request.BroadcastNotificationContext;
 import com.live_commerce.notification.presentation.dto.request.NotificationCreateRequest;
 import com.live_commerce.notification.presentation.dto.request.UserInfo;
 import com.live_commerce.notification.presentation.dto.response.NotificationCreateResponse;
 import com.live_commerce.notification.presentation.dto.response.NotificationResponse;
 import com.live_commerce.notification.presentation.dto.response.ReadNotificationListResponse;
+
+// ✨ 추가: Prometheus 메트릭 수집을 위한 import
+import com.live_commerce.notification.infrastructure.metrics.NotificationMetrics;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -23,8 +23,17 @@ import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+/**
+ * 알림 발송은 Kafka 단일 경로로만 동작한다.
+ *
+ * <p>스케줄러가 만기(scheduledAt <= now) 미발송 레코드를 조회해 notification-created 토픽으로 발행하고,
+ * 실제 발송은 {@code NotificationEventConsumer} → {@link #processByMessage} 에서만 일어난다.
+ * 과거에 존재하던 "DB Polling 후 즉시 동기 발송" 경로(checkScheduledNotifications →
+ * ConsoleAlertSender)는 같은 레코드를 두 경로가 동시에 집어가 중복 발송이 가능해 제거했다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,10 +41,13 @@ public class NotificationService {
 
   private final NotificationRepository notificationRepository;
 
-  private final ConsoleAlertSender consoleAlertSender;
   private final NotificationEventProducer producer;
   private final ObjectMapper objectMapper;
   private final AlertSender alertSender;
+
+  // ✨ 추가: Prometheus 메트릭 수집을 위한 NotificationMetrics 주입
+  // @RequiredArgsConstructor가 자동으로 생성자 주입 처리
+  private final NotificationMetrics metrics;
 
   public NotificationCreateResponse createNotificationForLiveBroadcast(
       NotificationCreateRequest request) {
@@ -62,78 +74,20 @@ public class NotificationService {
     return new ReadNotificationListResponse(responseList);
   }
 
-  // users.json 파일에서 사용자 리스트를 읽어오기
+  /**
+   * 발송 대상 사용자 목록.
+   *
+   * <p>TODO: resources/data/users.json 고정 파일 의존을 걷어내고 실제 구독자를 조회해야 한다.
+   * 지금 남겨둔 이유는 구독자 조회 경로({@code LiveBroadcastClient#getSubscribersWithTitle})가
+   * livebroadcast 서비스 기동을 전제로 해서, 이 서비스 단독으로는 알림 경로를 재현/부하측정할 수
+   * 없기 때문이다. 알림 경로 정리(Kafka 단일화)와 구독자 연동은 서로 독립적인 변경이라,
+   * 경로부터 확정한 뒤 별도로 교체한다.
+   */
   public List<UserInfo> getAllUsersFromJson() throws IOException {
     File file = new File(getClass().getClassLoader().getResource("data/users.json").getFile());
     return objectMapper.readValue(file, new TypeReference<List<UserInfo>>() {
     });
   }
-
-  // 테스트용으로 직접 호출할 수 있도록 하는 메서드 추가
-  public void triggerScheduledNotifications() throws IOException {
-    checkScheduledNotifications();
-  }
-
-  //  @Scheduled(fixedRate = 60000)
-  public void checkScheduledNotifications() throws IOException {
-    LocalDateTime now = LocalDateTime.now();
-    List<Notification> toSend = notificationRepository.findAllByScheduledAtLessThanEqualAndIsSentFalse(
-        now);
-
-    for (Notification notification : toSend) {
-      if (!checkType(notification.getType())) {
-        continue;
-      }
-      processNotification(notification);
-    }
-  }
-
-  private boolean checkType(NotificationType type) {
-    return type == NotificationType.LIVE_BROADCAST;
-  }
-
-  private void processNotification(Notification notification) throws IOException {
-    List<UserInfo> testUsers = getAllUsersFromJson();
-    String broadcastTitle = "봄맞이 특가방송";
-    //BroadcastNotificationContext context = broadcastClient.getSubscribersWithTitle(notification.getTargetId());
-    BroadcastNotificationContext context = new BroadcastNotificationContext(testUsers);
-
-    boolean success = trySendToAllUsers(notification, context);
-
-    if (success && !notification.isFailed()) {
-      notificationRepository.save(notification.markAsSent());
-    }
-  }
-
-  private boolean trySendToAllUsers(
-      Notification notification,
-      BroadcastNotificationContext context
-  ) {
-    // TODO: 통신으로 방송 이름만 가져오거나, requstBody에 포함해서 가져오는 걸로 변경.
-    String liveBroadcastName = "테스트 방송";
-    boolean allSuccess = true;
-
-    for (UserInfo user : context.users()) {
-      try {
-        consoleAlertSender.send(user.id(), user.name(), liveBroadcastName);
-      } catch (Exception e) {
-        allSuccess = false;
-        log.warn("⚠️ 사용자 알림 전송 실패: userId={}, msg={}", user.id(), e.getMessage());
-
-        notification = notification.increaseRetryCount();
-
-        if (notification.getRetryCount() >= 5 && !notification.isSent()) {
-          notification = notification.markAsFailed();
-          notificationRepository.save(notification);
-          break;
-        }
-
-      }
-
-    }
-    return allSuccess;
-  }
-
 
   public void deleteNotification(UUID targetId) {
     Notification notification = notificationRepository.findByTargetIdAndDeletedStatusFalse(targetId)
@@ -142,12 +96,21 @@ public class NotificationService {
     notificationRepository.save(notification);
   }
 
-  // Kafka 도입
+  /**
+   * 테스트/데모 전용 수동 트리거. 운영 발송은 {@link #publishScheduledNotifications()}의 스케줄러가 담당한다.
+   *
+   * <p>용도: 스케줄러 주기(60초)를 기다리지 않고 발행→소비 경로를 즉시 확인하기 위한 것.
+   * 부하 테스트에서 발행 시점을 통제할 때도 이 경로를 쓴다. 비즈니스 로직은 스케줄러와 완전히 동일하다.
+   */
   public void triggerKafkaNotifications() throws IOException {
     publishScheduledNotifications();
   }
 
-  //  @Scheduled(fixedDelay = 60_000)
+  /**
+   * 만기된 미발송 알림을 조회해 Kafka로 발행한다. 실제 발송은 Consumer가 수행한다.
+   * fixedDelay: 이전 실행이 끝난 뒤 60초 후 재실행(발행이 밀릴 때 중첩 실행 방지).
+   */
+  @Scheduled(fixedDelay = 60_000)
   public void publishScheduledNotifications() {
     List<Notification> list = notificationRepository.findAllByScheduledAtLessThanEqualAndIsSentFalse(
         LocalDateTime.now());
@@ -159,27 +122,91 @@ public class NotificationService {
     }
   }
 
+  /**
+   * Kafka 메시지를 받아서 실제 알림을 전송하는 메서드
+   *
+   * 📊 메트릭 수집:
+   * - 알림 전송 성공 시: metrics.incrementSuccess()
+   * - 알림 전송 실패 시: metrics.incrementFailure()
+   * - 재시도 발생 시: metrics.incrementRetry()
+   * - DLQ 이동 시: metrics.incrementDLQ()
+   *
+   * @param msg Kafka에서 받은 알림 생성 이벤트
+   * @throws IOException JSON 파일 읽기 실패 시
+   */
   public void processByMessage(NotificationCreatedEvent msg) throws IOException {
     Notification notification = notificationRepository.findById(msg.notificationId())
         .orElseThrow(() -> new IllegalArgumentException("알림 없음: " + msg.notificationId()));
 
+    // 이미 전송된 알림은 처리하지 않음 (멱등성 보장)
     if (notification.isSent()) {
       return;
     }
 
+    // users.json에서 테스트 사용자 목록 가져오기
+    // TODO: 실제로는 DB에서 구독자 목록을 가져와야 함
     List<UserInfo> users = getAllUsersFromJson();
 
-    boolean allSuccess = true;
+    boolean allSuccess = true;  // 모든 사용자에게 성공적으로 전송되었는지 여부
     for (UserInfo user : users) {
       try {
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 알림 전송 시도
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         alertSender.send(user.id(), user.name(), "[kafka] messsage 테스트");
+
+        // ✨ 메트릭 수집: 알림 전송 성공
+        // Prometheus Counter 1 증가: notification_sent_total{status="success"}
+        metrics.incrementSuccess();
+
+        log.info("✅ 알림 전송 성공: userId={}, name={}", user.id(), user.name());
+
       } catch (Exception e) {
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 알림 전송 실패 처리
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         allSuccess = false;
+
+        // ✨ 메트릭 수집: 알림 전송 실패
+        // Prometheus Counter 1 증가: notification_sent_total{status="failure"}
+        metrics.incrementFailure();
+
         log.warn("⚠️ 알림 전송 실패: userId={}, {}", user.id(), e.getMessage());
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 재시도 처리
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        notification = notification.increaseRetryCount();  // 재시도 횟수 증가
+
+        // ✨ 메트릭 수집: 재시도 발생
+        // Prometheus Counter 1 증가: notification_retry_total
+        metrics.incrementRetry();
+
+        log.info("🔄 재시도 횟수 증가: notificationId={}, retryCount={}/5",
+            notification.getId(), notification.getRetryCount());
+
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 최대 재시도 횟수 초과 시 DLQ로 이동
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if (notification.getRetryCount() >= 5) {
+          notification = notification.markAsFailed();  // 실패로 마킹
+
+          // ✨ 메트릭 수집: DLQ로 이동
+          // Prometheus Counter 1 증가: notification_dlq_total
+          metrics.incrementDLQ();
+
+          log.error("🔴 DLQ 이동: notificationId={}, 최대 재시도 횟수(5회) 초과",
+              notification.getId());
+        }
       }
     }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 알림 상태 저장
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (allSuccess) {
-      notification = notification.markAsSent();
+      notification = notification.markAsSent();  // 성공으로 마킹
+      log.info("✅ 모든 사용자에게 알림 전송 완료: notificationId={}", notification.getId());
     }
     notificationRepository.save(notification);
   }
